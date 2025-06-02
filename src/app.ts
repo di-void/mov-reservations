@@ -1,12 +1,11 @@
 import Fastify from "fastify";
+import { mountRoutes } from "./routes";
 
 const fastify = Fastify({
   logger: true,
 });
 
-fastify.get("/", (request, reply) => {
-  reply.send({ hello: "world" });
-});
+fastify.register(mountRoutes, { prefix: "/api/v1" });
 
 fastify.listen({ port: 3000 }, (err, address) => {
   if (err) {
