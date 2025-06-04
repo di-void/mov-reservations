@@ -12,10 +12,13 @@ export const users = sqliteTable("users", {
   updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
 });
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 export const movies = sqliteTable("movies", {
-  id: integer("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
+  id: integer().primaryKey(),
+  title: text().notNull(),
+  description: text().notNull(),
   releaseDate: integer({ mode: "timestamp" }).notNull(),
   duration: integer().notNull(),
   rating: integer().notNull(),

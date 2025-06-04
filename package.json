@@ -16,6 +16,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.5.5",
     "drizzle-kit": "^0.31.1",
     "drizzle-seed": "^0.3.1",
