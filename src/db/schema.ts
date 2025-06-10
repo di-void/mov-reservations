@@ -1,4 +1,11 @@
-import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  integer,
+  text,
+  blob,
+  primaryKey,
+  foreignKey,
+} from "drizzle-orm/sqlite-core";
 
 export const ROLES = ["admin", "user"] as const;
 
@@ -25,3 +32,103 @@ export const movies = sqliteTable("movies", {
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
   updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
 });
+
+export const showTimes = sqliteTable(
+  "show_times",
+  {
+    hallId: integer()
+      .notNull()
+      .references(() => halls.id),
+    movieId: integer()
+      .notNull()
+      .references(() => movies.id),
+    time: integer({ mode: "timestamp" }).notNull(),
+    createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+    updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.hallId, table.movieId] })]
+);
+
+export const halls = sqliteTable("halls", {
+  id: integer().primaryKey(),
+  name: text().notNull(),
+  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+});
+
+type Config = {
+  disabledSeats: string[];
+  vipSeats: string[];
+  gaps: string[];
+  notes: string;
+  pricing: {
+    regular: number;
+    vip: number;
+  };
+};
+
+export const hallLayouts = sqliteTable("hall_layouts", {
+  id: integer().primaryKey(),
+  config: blob({ mode: "json" }).$type<Config>().notNull(),
+  hallId: integer()
+    .references(() => halls.id)
+    .notNull(),
+  rowCount: integer().notNull(),
+  seatsPerRow: integer().notNull(),
+  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+});
+
+// chart will be a chain of these delimited by newlines
+export const seatingCharts = sqliteTable(
+  "seating_charts",
+  {
+    id: integer().primaryKey(),
+    chart: blob({ mode: "json" }).$type<string>().notNull(), // available = o, disabled = x
+    hallId: integer()
+      .notNull()
+      .references(() => halls.id),
+    movieId: integer()
+      .notNull()
+      .references(() => movies.id),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.hallId, table.movieId],
+      foreignColumns: [showTimes.hallId, showTimes.movieId],
+      name: "show_time_fk",
+    }),
+  ]
+);
+
+export const reservations = sqliteTable(
+  "reservations",
+  {
+    id: integer().primaryKey(),
+    seat: blob({ mode: "json" })
+      .$type<{ row: string; number: number }>()
+      .notNull(),
+    seatLayoutId: integer()
+      .notNull()
+      .references(() => hallLayouts.id),
+    userId: integer() // Add these fields
+      .notNull()
+      .references(() => users.id),
+    hallId: integer()
+      .notNull()
+      .references(() => halls.id),
+    movieId: integer()
+      .notNull()
+      .references(() => movies.id),
+    status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
+    createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+    updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.hallId, table.movieId],
+      foreignColumns: [showTimes.hallId, showTimes.movieId],
+      name: "show_time_fk",
+    }),
+  ]
+);
