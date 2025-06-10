@@ -2,7 +2,6 @@ import {
   sqliteTable,
   integer,
   text,
-  blob,
   primaryKey,
   foreignKey,
 } from "drizzle-orm/sqlite-core";
@@ -69,7 +68,7 @@ type Config = {
 
 export const hallLayouts = sqliteTable("hall_layouts", {
   id: integer().primaryKey(),
-  config: blob({ mode: "json" }).$type<Config>().notNull(),
+  config: text({ mode: "json" }).$type<Config>().notNull(),
   hallId: integer()
     .references(() => halls.id)
     .notNull(),
@@ -84,7 +83,7 @@ export const seatingCharts = sqliteTable(
   "seating_charts",
   {
     id: integer().primaryKey(),
-    chart: blob({ mode: "json" }).$type<string>().notNull(), // available = o, disabled = x
+    chart: text({ mode: "json" }).$type<string>().notNull(), // available = o, disabled = x
     hallId: integer()
       .notNull()
       .references(() => halls.id),
@@ -105,7 +104,7 @@ export const reservations = sqliteTable(
   "reservations",
   {
     id: integer().primaryKey(),
-    seat: blob({ mode: "json" })
+    seat: text({ mode: "json" })
       .$type<{ row: string; number: number }>()
       .notNull(),
     seatLayoutId: integer()
