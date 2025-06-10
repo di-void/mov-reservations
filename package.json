@@ -24,6 +24,7 @@
     "typescript": "^5.6.2"
   },
   "dependencies": {
+    "@fastify/express": "^4.0.2",
     "@libsql/client": "^0.15.8",
     "@t3-oss/env-core": "^0.13.6",
     "bcryptjs": "^3.0.2",

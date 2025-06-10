@@ -12,6 +12,7 @@ export async function loginHandler(
   const result = loginSchema.safeParse(request.body);
   if (!result.success) {
     reply.code(400).send({ error: "Invalid request" });
+    return;
   }
   const { email, password } = result.data!;
 
@@ -20,12 +21,14 @@ export async function loginHandler(
   });
 
   if (!user) {
-    return reply.code(401).send({ error: "Invalid credentials" });
+    reply.code(401).send({ error: "Invalid credentials" });
+    return;
   }
 
   const passwordMatch = await bcrypt.compare(password, user.password);
   if (!passwordMatch) {
-    return reply.code(401).send({ error: "Invalid credentials" });
+    reply.code(401).send({ error: "Invalid credentials" });
+    return;
   }
 
   const payload = { id: user.id, email: user.email, role: user.role };
@@ -43,7 +46,7 @@ export async function registerHandler(
 ) {
   const result = registerSchema.safeParse(request.body);
   if (!result.success) {
-    reply.code(400).send({ error: "Invalid request" });
+    return reply.code(400).send({ error: "Invalid request" });
   }
   const { email, password, name } = result.data!;
 

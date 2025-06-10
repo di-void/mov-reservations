@@ -3,7 +3,7 @@ import Fastify from "fastify";
 import { mountRoutes } from "./routes";
 
 const fastify = Fastify({
-  // logger: true,
+  logger: true,
 });
 
 fastify.register(mountRoutes, { prefix: "/api/v1" });
