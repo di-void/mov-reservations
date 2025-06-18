@@ -15,7 +15,10 @@ export const users = sqliteTable("users", {
   password: text().notNull(),
   role: text({ enum: ROLES }).notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
 });
 
 export type User = typeof users.$inferSelect;
@@ -28,8 +31,12 @@ export const movies = sqliteTable("movies", {
   releaseDate: integer({ mode: "timestamp" }).notNull(),
   duration: integer().notNull(),
   rating: integer().notNull(),
+  genre: text().notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
 });
 
 export const showTimes = sqliteTable(
@@ -43,7 +50,10 @@ export const showTimes = sqliteTable(
       .references(() => movies.id),
     time: integer({ mode: "timestamp" }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-    updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+    updatedAt: integer({ mode: "timestamp" })
+      .notNull()
+      .default(new Date())
+      .$onUpdateFn(() => new Date()),
   },
   (table) => [primaryKey({ columns: [table.hallId, table.movieId] })]
 );
@@ -52,7 +62,10 @@ export const halls = sqliteTable("halls", {
   id: integer().primaryKey(),
   name: text().notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
 });
 
 type Config = {
@@ -75,7 +88,10 @@ export const hallLayouts = sqliteTable("hall_layouts", {
   rowCount: integer().notNull(),
   seatsPerRow: integer().notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
 });
 
 // chart will be a chain of these delimited by newlines
@@ -121,7 +137,10 @@ export const reservations = sqliteTable(
       .references(() => movies.id),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-    updatedAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+    updatedAt: integer({ mode: "timestamp" })
+      .notNull()
+      .default(new Date())
+      .$onUpdateFn(() => new Date()),
   },
   (table) => [
     foreignKey({
