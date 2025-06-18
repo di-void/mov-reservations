@@ -126,7 +126,7 @@ export const reservations = sqliteTable(
     seatLayoutId: integer()
       .notNull()
       .references(() => hallLayouts.id),
-    userId: integer() // Add these fields
+    userId: integer()
       .notNull()
       .references(() => users.id),
     hallId: integer()
