@@ -1,13 +1,9 @@
 import { FastifyInstance } from "fastify";
 import {
   listHallsHandler,
-  listHallsOpts,
   createHallHandler,
-  createHallOpts,
   createHallLayoutHandler,
-  createHallLayoutOpts,
   getHallLayoutHandler,
-  getHallLayoutOpts,
 } from "../modules/halls/handlers";
 import {
   CreateHallInput,
@@ -19,23 +15,19 @@ export async function routes(fastify: FastifyInstance, _options: any) {
   fastify.addHook("preHandler", authenticate);
 
   // Public routes
-  fastify.get("/", listHallsOpts, listHallsHandler);
-  fastify.get("/:hallId/layout", getHallLayoutOpts, getHallLayoutHandler);
+  fastify.get("/", listHallsHandler);
+  fastify.get("/:hallId/layout", getHallLayoutHandler);
 
   // Admin routes
   const adminRouteConfig = {
     preHandler: isAdmin,
   };
 
-  fastify.post<{ Body: CreateHallInput }>(
-    "/",
-    { ...adminRouteConfig, ...createHallOpts },
-    createHallHandler
-  );
+  fastify.post<{
+    Body: CreateHallInput;
+  }>("/", adminRouteConfig, createHallHandler);
 
-  fastify.post<{ Body: CreateHallLayoutInput }>(
-    "/layout",
-    { ...adminRouteConfig, ...createHallLayoutOpts },
-    createHallLayoutHandler
-  );
+  fastify.post<{
+    Body: CreateHallLayoutInput;
+  }>("/layout", adminRouteConfig, createHallLayoutHandler);
 }
