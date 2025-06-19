@@ -61,11 +61,13 @@ export async function createShowTime(
 
   const showTimeData = result.data;
   await addShowTime(showTimeData);
+
+  // generate seats based on hall layout
   reply.code(201).send({ message: "Show time added successfully" });
 }
 
 export async function getMovieShowTimes(
-  request: FastifyRequest<{ Params: { movieId: number } }>,
+  request: FastifyRequest,
   reply: FastifyReply
 ) {
   const result = z
@@ -85,7 +87,6 @@ export async function getMovieShowTimes(
 
 export async function updateMovieHandler(
   request: FastifyRequest<{
-    Params: { id: number };
     Body: UpdateMovieBody;
   }>,
   reply: FastifyReply
@@ -113,9 +114,7 @@ export async function updateMovieHandler(
 }
 
 export async function deleteMovieHandler(
-  request: FastifyRequest<{
-    Params: { id: number };
-  }>,
+  request: FastifyRequest,
   reply: FastifyReply
 ) {
   const result = z

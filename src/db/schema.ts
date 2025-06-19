@@ -5,6 +5,7 @@ import {
   primaryKey,
   foreignKey,
 } from "drizzle-orm/sqlite-core";
+import { generateTicketId } from "../utils";
 
 export const ROLES = ["admin", "user"] as const;
 
@@ -55,7 +56,9 @@ export const showTimes = sqliteTable(
       .default(new Date())
       .$onUpdateFn(() => new Date()),
   },
-  (table) => [primaryKey({ columns: [table.hallId, table.movieId] })]
+  (table) => [
+    primaryKey({ columns: [table.hallId, table.movieId, table.time] }),
+  ]
 );
 
 export const halls = sqliteTable("halls", {
@@ -95,22 +98,23 @@ export const hallLayouts = sqliteTable("hall_layouts", {
 });
 
 // chart will be a chain of these delimited by newlines
-export const seatingCharts = sqliteTable(
-  "seating_charts",
+export const seats = sqliteTable(
+  "seats",
   {
     id: integer().primaryKey(),
     chart: text({ mode: "json" }).$type<string>().notNull(), // available = o, disabled = x
-    hallId: integer()
+    reserved: text({ mode: "json" })
+      .$type<string[]>()
       .notNull()
-      .references(() => halls.id),
-    movieId: integer()
-      .notNull()
-      .references(() => movies.id),
+      .$defaultFn(() => []),
+    hallId: integer().notNull(),
+    movieId: integer().notNull(),
+    time: integer({ mode: "timestamp" }).notNull(),
   },
   (table) => [
     foreignKey({
-      columns: [table.hallId, table.movieId],
-      foreignColumns: [showTimes.hallId, showTimes.movieId],
+      columns: [table.hallId, table.movieId, table.time],
+      foreignColumns: [showTimes.hallId, showTimes.movieId, showTimes.time],
       name: "show_time_fk",
     }),
   ]
@@ -120,21 +124,15 @@ export const reservations = sqliteTable(
   "reservations",
   {
     id: integer().primaryKey(),
-    seat: text({ mode: "json" })
-      .$type<{ row: string; number: number }>()
+    seats: text({ mode: "json" })
+      .$type<{ row: string; number: number }[]>()
       .notNull(),
-    seatLayoutId: integer()
-      .notNull()
-      .references(() => hallLayouts.id),
     userId: integer()
       .notNull()
       .references(() => users.id),
-    hallId: integer()
-      .notNull()
-      .references(() => halls.id),
-    movieId: integer()
-      .notNull()
-      .references(() => movies.id),
+    hallId: integer().notNull(),
+    movieId: integer().notNull(),
+    time: integer({ mode: "timestamp" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
     updatedAt: integer({ mode: "timestamp" })
@@ -144,9 +142,34 @@ export const reservations = sqliteTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.hallId, table.movieId],
-      foreignColumns: [showTimes.hallId, showTimes.movieId],
+      columns: [table.hallId, table.movieId, table.time],
+      foreignColumns: [showTimes.hallId, showTimes.movieId, showTimes.time],
       name: "show_time_fk",
     }),
   ]
 );
+
+export const tickets = sqliteTable("tickets", {
+  id: text().$defaultFn(() => generateTicketId()),
+  reservationId: integer()
+    .notNull()
+    .references(() => reservations.id),
+  paymentStatus: text({
+    enum: ["pending", "processing", "failed", "paid", "refunded"],
+  }).notNull(),
+  paymentMethod: text({
+    enum: ["credit_card", "debit_card", "bank_transfer"],
+  }).notNull(),
+  refundReason: text(),
+  totalAmount: integer().notNull(),
+  metadata: text({ mode: "json" }),
+  transactionId: text(), // from payment provider
+  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
+});
+
+export type Reservation = typeof reservations.$inferSelect;
+export type Seat = Reservation["seats"][number];

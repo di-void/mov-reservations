@@ -23,9 +23,7 @@ export async function routes(fastify: FastifyInstance, _options: any) {
     Querystring: QueryParams;
   }>("/", listMovies);
 
-  fastify.get<{
-    Params: { movieId: number };
-  }>("/:movieId/showtimes", getMovieShowTimes);
+  fastify.get("/:movieId/showtimes", getMovieShowTimes);
 
   // Admin routes
   const adminRouteConfig = {
@@ -42,10 +40,7 @@ export async function routes(fastify: FastifyInstance, _options: any) {
 
   fastify.patch<{
     Body: UpdateMovieBody;
-    Params: { id: number };
   }>("/:id", adminRouteConfig, updateMovieHandler);
 
-  fastify.delete<{
-    Params: { id: number };
-  }>("/:id", adminRouteConfig, deleteMovieHandler);
+  fastify.delete("/:id", adminRouteConfig, deleteMovieHandler);
 }
