@@ -20,5 +20,5 @@ export const createHallLayoutSchema = z.object({
   }),
 });
 
-export type CreateHallInput = z.infer<typeof createHallSchema>;
-export type CreateHallLayoutInput = z.infer<typeof createHallLayoutSchema>;
+export type CreateHallBody = z.infer<typeof createHallSchema>;
+export type CreateHallLayoutBody = z.infer<typeof createHallLayoutSchema>;

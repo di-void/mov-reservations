@@ -1,9 +1,9 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import {
   type QueryParams,
-  type CreateMovieInput,
-  type CreateShowTimeInput,
-  type UpdateMovieInput,
+  type CreateMovieBody,
+  type CreateShowTimeBody,
+  type UpdateMovieBody,
   queryParamSchema,
   createMovieSchema,
   createShowTimeSchema,
@@ -35,7 +35,7 @@ export async function listMovies(
 }
 
 export async function createMovie(
-  request: FastifyRequest<{ Body: CreateMovieInput }>,
+  request: FastifyRequest<{ Body: CreateMovieBody }>,
   reply: FastifyReply
 ) {
   const result = createMovieSchema.safeParse(request.body);
@@ -50,7 +50,7 @@ export async function createMovie(
 }
 
 export async function createShowTime(
-  request: FastifyRequest<{ Body: CreateShowTimeInput }>,
+  request: FastifyRequest<{ Body: CreateShowTimeBody }>,
   reply: FastifyReply
 ) {
   const result = createShowTimeSchema.safeParse(request.body);
@@ -86,7 +86,7 @@ export async function getMovieShowTimes(
 export async function updateMovieHandler(
   request: FastifyRequest<{
     Params: { id: number };
-    Body: UpdateMovieInput;
+    Body: UpdateMovieBody;
   }>,
   reply: FastifyReply
 ) {

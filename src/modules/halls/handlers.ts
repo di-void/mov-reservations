@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import {
-  type CreateHallInput,
-  type CreateHallLayoutInput,
+  type CreateHallBody,
+  type CreateHallLayoutBody,
   createHallSchema,
   createHallLayoutSchema,
 } from "./schema";
@@ -23,7 +23,7 @@ export async function listHallsHandler(
 }
 
 export async function createHallHandler(
-  request: FastifyRequest<{ Body: CreateHallInput }>,
+  request: FastifyRequest<{ Body: CreateHallBody }>,
   reply: FastifyReply
 ) {
   const result = createHallSchema.safeParse(request.body);
@@ -37,7 +37,7 @@ export async function createHallHandler(
 }
 
 export async function createHallLayoutHandler(
-  request: FastifyRequest<{ Body: CreateHallLayoutInput }>,
+  request: FastifyRequest<{ Body: CreateHallLayoutBody }>,
   reply: FastifyReply
 ) {
   const result = createHallLayoutSchema.safeParse(request.body);

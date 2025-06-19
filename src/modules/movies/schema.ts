@@ -28,6 +28,6 @@ export const idParamSchema = z.object({
 export const updateMovieSchema = createMovieSchema.partial();
 
 export type QueryParams = z.infer<typeof queryParamSchema>;
-export type CreateMovieInput = z.infer<typeof createMovieSchema>;
-export type CreateShowTimeInput = z.infer<typeof createShowTimeSchema>;
-export type UpdateMovieInput = z.infer<typeof updateMovieSchema>;
+export type CreateMovieBody = z.infer<typeof createMovieSchema>;
+export type CreateShowTimeBody = z.infer<typeof createShowTimeSchema>;
+export type UpdateMovieBody = z.infer<typeof updateMovieSchema>;

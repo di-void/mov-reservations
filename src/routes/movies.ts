@@ -8,9 +8,9 @@ import {
   deleteMovieHandler,
 } from "../modules/movies/handlers";
 import {
-  CreateMovieInput,
-  CreateShowTimeInput,
-  UpdateMovieInput,
+  CreateMovieBody,
+  CreateShowTimeBody,
+  UpdateMovieBody,
   QueryParams,
 } from "../modules/movies/schema";
 import { authenticate, isAdmin } from "../middleware/auth";
@@ -33,15 +33,15 @@ export async function routes(fastify: FastifyInstance, _options: any) {
   };
 
   fastify.post<{
-    Body: CreateMovieInput;
+    Body: CreateMovieBody;
   }>("/", adminRouteConfig, createMovie);
 
   fastify.post<{
-    Body: CreateShowTimeInput;
+    Body: CreateShowTimeBody;
   }>("/showtimes", adminRouteConfig, createShowTime);
 
   fastify.patch<{
-    Body: UpdateMovieInput;
+    Body: UpdateMovieBody;
     Params: { id: number };
   }>("/:id", adminRouteConfig, updateMovieHandler);
 

@@ -5,10 +5,7 @@ import {
   createHallLayoutHandler,
   getHallLayoutHandler,
 } from "../modules/halls/handlers";
-import {
-  CreateHallInput,
-  CreateHallLayoutInput,
-} from "../modules/halls/schema";
+import { CreateHallBody, CreateHallLayoutBody } from "../modules/halls/schema";
 import { authenticate, isAdmin } from "../middleware/auth";
 
 export async function routes(fastify: FastifyInstance, _options: any) {
@@ -24,10 +21,10 @@ export async function routes(fastify: FastifyInstance, _options: any) {
   };
 
   fastify.post<{
-    Body: CreateHallInput;
+    Body: CreateHallBody;
   }>("/", adminRouteConfig, createHallHandler);
 
   fastify.post<{
-    Body: CreateHallLayoutInput;
+    Body: CreateHallLayoutBody;
   }>("/layout", adminRouteConfig, createHallLayoutHandler);
 }
