@@ -71,7 +71,8 @@ export async function insertReservation(data: {
   return db
     .insert(reservations)
     .values({ seats, ...rest, status: "pending" })
-    .returning();
+    .returning()
+    .then((res) => res[0]);
 }
 
 export async function updateReservation(

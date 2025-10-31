@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
 import { env } from "../../env";
-
+import * as z from "zod";
 declare module "fastify" {
   interface FastifyRequest {
     user?: {
@@ -9,6 +9,7 @@ declare module "fastify" {
       email: string;
       role: string;
     };
+    clientType?: string;
   }
 }
 
@@ -19,7 +20,7 @@ export async function authenticate(
   try {
     const authHeader = request.headers.authorization;
     if (!authHeader) {
-      reply.code(401).send({ error: "No token provided" });
+      reply.code(401).send({ error: "Unauthorized" });
       return;
     }
 
@@ -47,4 +48,25 @@ export async function isAdmin(request: FastifyRequest, reply: FastifyReply) {
     reply.code(403).send({ error: "Insufficient permissions" });
     return;
   }
+}
+
+const querySchema = z.object({
+  client: z.enum(["web", "mobile"]).optional().default("web"),
+});
+
+export async function attachClientType(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  // attach the client type to the request
+  const data = querySchema.safeParse(request.query);
+  if (!data.success) {
+    reply.send(400).send({ error: "Invalid client type" });
+    return;
+  }
+
+  const {
+    data: { client },
+  } = data;
+  request.clientType = client;
 }

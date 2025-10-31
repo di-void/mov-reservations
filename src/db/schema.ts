@@ -71,15 +71,24 @@ export const halls = sqliteTable("halls", {
     .$onUpdateFn(() => new Date()),
 });
 
+export const pricingRules = sqliteTable(
+  "pricing_rules",
+  {
+    id: integer({ mode: "number" }).primaryKey(),
+    hallId: integer().references(() => halls.id), // nullable to allow for category override
+    category: text().notNull(),
+    price: integer({ mode: "number" }).notNull(), // stored in cents
+  },
+  (table) => [unique().on(table.hallId, table.category)]
+);
+export type PricingRule = typeof pricingRules.$inferSelect;
+export type NewPricingRule = typeof pricingRules.$inferInsert;
+
 type Config = {
   disabledSeats: string[];
   vipSeats: string[];
   gaps: string[];
   notes: string;
-  pricing: {
-    regular: number;
-    vip: number;
-  };
 };
 
 export const hallLayouts = sqliteTable("hall_layouts", {
@@ -97,14 +106,14 @@ export const hallLayouts = sqliteTable("hall_layouts", {
     .$onUpdateFn(() => new Date()),
 });
 
-export type SeatType = "default";
-
 export const seats = sqliteTable(
   "seats",
   {
     id: integer().primaryKey(),
     seatId: integer().notNull(),
-    type: text().$type<SeatType>().default("default"),
+    priceId: integer()
+      .references(() => pricingRules.id)
+      .notNull(),
     hallId: integer({ mode: "number" }).notNull(),
   },
   (table) => [unique().on(table.seatId, table.hallId)]
@@ -143,7 +152,8 @@ export const reservations = sqliteTable(
       .references(() => users.id),
     hallId: integer({ mode: "number" }).notNull(),
     movieId: integer({ mode: "number" }).notNull(),
-    time: integer({ mode: "timestamp" }).notNull(),
+    startTime: integer({ mode: "timestamp" }).notNull(),
+    endTime: integer({ mode: "timestamp" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
     updatedAt: integer({ mode: "timestamp" })
@@ -153,7 +163,7 @@ export const reservations = sqliteTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.hallId, table.time],
+      columns: [table.hallId, table.startTime],
       foreignColumns: [showTimes.hallId, showTimes.startTime],
       name: "show_time_fk",
     }),

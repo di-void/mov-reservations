@@ -12,7 +12,7 @@ import {
   getHall,
   getHallLayout,
 } from "./data";
-import { z } from "zod";
+import * as z from "zod";
 
 export async function listHallsHandler(
   _request: FastifyRequest,
@@ -29,7 +29,7 @@ export async function createHallHandler(
   const result = createHallSchema.safeParse(request.body);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const [hall] = await addHall(result.data);
@@ -43,7 +43,7 @@ export async function createHallLayoutHandler(
   const result = createHallLayoutSchema.safeParse(request.body);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   // Verify hall exists
@@ -73,7 +73,7 @@ export async function getHallLayoutHandler(
     .safeParse(request.params);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const layout = await getHallLayout(result.data.hallId);

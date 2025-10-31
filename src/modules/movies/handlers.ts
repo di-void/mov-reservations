@@ -17,7 +17,7 @@ import {
   updateMovie,
   deleteMovie,
 } from "./data";
-import { z } from "zod";
+import * as z from "zod";
 
 export async function listMovies(
   request: FastifyRequest<{ Querystring: QueryParams }>,
@@ -26,7 +26,7 @@ export async function listMovies(
   const result = queryParamSchema.safeParse(request.query);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const { genre, rating } = result.data;
@@ -41,7 +41,7 @@ export async function createMovie(
   const result = createMovieSchema.safeParse(request.body);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const movieData = result.data;
@@ -56,7 +56,7 @@ export async function createShowTime(
   const result = createShowTimeSchema.safeParse(request.body);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const showTimeData = result.data;
@@ -77,7 +77,7 @@ export async function getMovieShowTimes(
     .safeParse(request.params);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const { movieId } = result.data;
@@ -98,13 +98,15 @@ export async function updateMovieHandler(
     .safeParse(request.params);
 
   if (!paramsResult.success) {
-    return reply.status(400).send({ errors: paramsResult.error.format() });
+    return reply
+      .status(400)
+      .send({ errors: z.treeifyError(paramsResult.error) });
   }
 
   const bodyResult = updateMovieSchema.safeParse(request.body);
 
   if (!bodyResult.success) {
-    return reply.status(400).send({ errors: bodyResult.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(bodyResult.error) });
   }
 
   const { id } = paramsResult.data;
@@ -124,7 +126,7 @@ export async function deleteMovieHandler(
     .safeParse(request.params);
 
   if (!result.success) {
-    return reply.status(400).send({ errors: result.error.format() });
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
   }
 
   const { id } = result.data;

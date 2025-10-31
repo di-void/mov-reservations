@@ -1,24 +1,15 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CreateReservationBody, createReservationSchema } from "./schema";
-import {
-  findSeatsByHallId,
-  findReservedSeatsByShowTime,
-  findShowTimeByHallIdAndTime,
-  insertReservedSeats,
-  insertReservation,
-} from "./data";
-import { db } from "../../db";
-import { and, eq, inArray } from "drizzle-orm";
-import {
-  reservations,
-  reservedSeats,
-  retryLog,
-  type LogData,
-} from "../../db/schema";
+import { insertReservation } from "./data";
+import { startCheckoutSession } from "../payments/handlers/checkout";
+import { checkAndMaybeReserve } from "../../lib/reservations";
+import { CustomError } from "../../lib/errors";
+import { validateRequestedSeats, validateShowTime } from "./validators";
+import * as z from "zod";
 
 export async function createReservation(
   request: FastifyRequest<{ Body: CreateReservationBody }>,
-  reply: FastifyReply,
+  reply: FastifyReply
 ) {
   try {
     // when reservation request comes in
@@ -42,7 +33,7 @@ export async function createReservation(
     const result = createReservationSchema.safeParse(request.body);
 
     if (!result.success) {
-      return reply.status(400).send({ errors: result.error.format() });
+      return reply.status(400).send({ errors: z.treeifyError(result.error) });
     }
 
     const {
@@ -98,7 +89,32 @@ export async function createReservation(
       userId,
     });
 
+    if (!reservation) {
+      // log: we should not normally enter this branch
+      throw new CustomError(
+        "reservations",
+        "Failed to insert reservation after seats were reserved. Insert returned falsy.",
+        {
+          operation: "createReservation",
+          context: {
+            movieId,
+            hallId,
+            time,
+            userId,
+            sessionKey,
+            requestedSeats,
+            reservedCount: reserved.reserved?.length ?? 0,
+          },
+        }
+      );
+    }
+
     // create checkout session
+    const checkoutSession = await startCheckoutSession(reservation);
+    return reply.status(201).send({
+      message: "Pending reservation created successfully",
+      checkoutSession, // client will handle redirect
+    });
   } catch (error) {
     console.log("Error:", { error });
     return reply.status(500).send({ message: "Something went wrong" });
@@ -109,181 +125,20 @@ export async function retryCreateReservation() {
   //
 }
 
-async function validateShowTime(hallId: number, time: Date) {
-  const res = await findShowTimeByHallIdAndTime({ hallId, time });
-  if (!res) {
-    return null;
-  }
-
-  const now = Date.now();
-  if (time.getMilliseconds() < now) return null;
-
-  return res;
-}
-
-async function checkAndMaybeReserve(data: {
-  time: Date;
-  hallId: number;
-  seats: number[];
-  userId: number;
-  sessionKey: string;
-  movieId: number;
-}) {
-  // Implementation:
-  // - If no reserved rows exist for any requested seat: insert reserved rows for all requested seats and
-  //   set a short hold expiry (HOLD_MS) for the current request and return success + reserved rows.
-  // - Otherwise, ensure there are reserved rows for every requested seat (insert with expiresAt = null for missing ones),
-  //   then compute which seats are "available" (expiresAt is null or has passed). If all requested seats are available,
-  //   atomically set their expiry to HOLD_MS (a short hold) and return success. If not all are available, return success=false
-  //   and include the list of currently available seats for error reporting.
-
-  const reserved = await findReservedSeatsByShowTime(
-    {
-      hallId: data.hallId,
-      time: data.time,
-    },
-    { seats: data.seats },
-  );
-  const HOLD_MS = 5 * 60 * 1000; // 5 minutes hold for in-flight reservation
-  const now = Date.now();
-  const holdExpiry = new Date(now + HOLD_MS);
-
-  // No reserved rows at all -> initialize and hold them
-  if (reserved.length === 0) {
-    const toInsert = data.seats.map((seatId) => ({
-      hallId: data.hallId,
-      seatId,
-      time: data.time,
-      expiresAt: holdExpiry,
-    }));
-
-    await insertReservedSeats(toInsert);
-
-    return { success: true, reserved: toInsert };
-  }
-
-  // If some reserved rows exist, ensure all requested seats have a reserved_seats row (create missing with expiresAt=null)
-  const reservedMap = new Map(reserved.map((r) => [r.seatId, r]));
-  const missingSeatIds = data.seats.filter((s) => !reservedMap.has(s));
-
-  if (missingSeatIds.length > 0) {
-    const toInit = missingSeatIds.map((seatId) => ({
-      hallId: data.hallId,
-      seatId,
-      time: data.time,
-      expiresAt: null,
-    }));
-    // initialize missing reserved seat rows with no expiry
-    await db
-      .insert(reservedSeats)
-      .values([...toInit])
-      .onConflictDoNothing({
-        target: [
-          reservedSeats.hallId,
-          reservedSeats.seatId,
-          reservedSeats.time,
-        ],
-      });
-  }
-
-  // Re-read current rows for the requested seats (some may have been inserted above)
-  const allReserved = await findReservedSeatsByShowTime(
-    { hallId: data.hallId, time: data.time },
-    { seats: data.seats },
-  );
-
-  const availableSeatIds = allReserved
-    .filter((r) => {
-      if (!r.expiresAt) return true; // null/undefined expiry -> available
-      const expiresAt = new Date(r.expiresAt).getTime();
-      return expiresAt <= now; // expired -> available
-    })
-    .map((r) => r.seatId);
-
-  // if all requested seats are available, set expiry to hold for this request
-  if (availableSeatIds.length === data.seats.length) {
-    const { hallId, movieId, sessionKey, userId, time } = data;
-    await atomicallyUpdateReservedSeats({
-      availableSeatIds,
-      hallId,
-      holdExpiry,
-      movieId,
-      time,
-      userId,
-      sessionKey,
-    });
-
-    const updated = await findReservedSeatsByShowTime(
-      { hallId: data.hallId, time: data.time },
-      { seats: data.seats },
-    );
-
-    return { success: true, reserved: updated };
-  }
-
-  // not all seats are available; return which seats are available for error reporting
-  return { success: false, available: availableSeatIds };
-}
-
-async function atomicallyUpdateReservedSeats(data: {
-  holdExpiry: Date;
-  hallId: number;
-  availableSeatIds: number[];
-  time: Date;
-  movieId: number;
-  userId: number;
-  sessionKey: string;
-}) {
-  db.transaction(async (tx) => {
-    await tx
-      .update(reservedSeats)
-      .set({ expiresAt: data.holdExpiry })
-      .where(
-        and(
-          eq(reservedSeats.hallId, data.hallId),
-          eq(reservedSeats.time, data.time),
-          inArray(reservedSeats.seatId, data.availableSeatIds),
-        ),
-      );
-
-    const log: LogData = {
-      hallId: data.hallId,
-      seatIds: data.availableSeatIds,
-      time: data.time,
-      status: "pending",
-      movieId: data.movieId,
-      userId: data.userId,
-    };
-
-    await tx.insert(retryLog).values({
-      data: log,
-      userId: data.userId,
-      sessionKey: data.sessionKey,
-    });
-  });
-}
-
-async function validateRequestedSeats(seats: number[], hallId: number) {
-  const res = await findSeatsByHallId({ seats, hallId });
-  if (res.length < seats.length) {
-    return false;
-  }
-
-  return true;
-}
-
 export async function getReservations(
   request: FastifyRequest,
-  reply: FastifyReply,
+  reply: FastifyReply
 ) {
   // fetch all user reseravations
 }
 
 export async function cancelReservation(
   request: FastifyRequest,
-  reply: FastifyReply,
+  reply: FastifyReply
 ) {
-  //
+  // cancel upcoming reservations
+  // free up reserved seats
+  // issue refund?
 }
 
 // https://orm.drizzle.team/docs/overview
