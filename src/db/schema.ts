@@ -50,14 +50,15 @@ export const showTimes = sqliteTable(
     movieId: integer()
       .notNull()
       .references(() => movies.id),
-    time: integer({ mode: "timestamp" }).notNull(),
+    startTime: integer({ mode: "timestamp" }).notNull(),
+    endTime: integer({ mode: "timestamp" }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
     updatedAt: integer({ mode: "timestamp" })
       .notNull()
       .default(new Date())
       .$onUpdateFn(() => new Date()),
   },
-  (table) => [primaryKey({ columns: [table.hallId, table.time] })]
+  (table) => [primaryKey({ columns: [table.hallId, table.startTime] })]
 );
 
 export const halls = sqliteTable("halls", {
@@ -117,7 +118,7 @@ export const reservedSeats = sqliteTable(
       .references(() => seats.id, { onDelete: "restrict" })
       .notNull(),
     time: integer({ mode: "timestamp" })
-      .references(() => showTimes.time, { onDelete: "cascade" })
+      .references(() => showTimes.startTime, { onDelete: "cascade" })
       .notNull(),
     expiresAt: integer({ mode: "timestamp" }),
   },
@@ -125,7 +126,7 @@ export const reservedSeats = sqliteTable(
     unique().on(table.hallId, table.seatId, table.time),
     foreignKey({
       columns: [table.hallId, table.time],
-      foreignColumns: [showTimes.hallId, showTimes.time],
+      foreignColumns: [showTimes.hallId, showTimes.startTime],
     }),
   ]
 );
@@ -153,7 +154,7 @@ export const reservations = sqliteTable(
   (table) => [
     foreignKey({
       columns: [table.hallId, table.time],
-      foreignColumns: [showTimes.hallId, showTimes.time],
+      foreignColumns: [showTimes.hallId, showTimes.startTime],
       name: "show_time_fk",
     }),
   ]

@@ -17,7 +17,7 @@ export async function findShowTimeByHallIdAndTime(data: {
     .select()
     .from(showTimes)
     .where(
-      and(eq(showTimes.hallId, data.hallId), eq(showTimes.time, data.time))
+      and(eq(showTimes.hallId, data.hallId), eq(showTimes.startTime, data.time))
     )
     .then((res) => res[0]);
 }

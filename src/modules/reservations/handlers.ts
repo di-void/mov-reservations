@@ -18,7 +18,7 @@ import {
 
 export async function createReservation(
   request: FastifyRequest<{ Body: CreateReservationBody }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   try {
     // when reservation request comes in
@@ -55,8 +55,8 @@ export async function createReservation(
     const userId = request.user!.id;
 
     // validate showtime
-    const isShowTimeValid = await validateShowTime(hallId, time);
-    if (!isShowTimeValid) {
+    const showTime = await validateShowTime(hallId, time);
+    if (!showTime) {
       return reply.status(400).send({
         message: "Can't make reservation - showtime is invalid",
         errors: { hallId, time },
@@ -90,7 +90,7 @@ export async function createReservation(
     }
 
     // create a pending reservation record with seat details
-    const r = await insertReservation({
+    const reservation = await insertReservation({
       seatIds: reserved.reserved?.map((r) => r.seatId)!,
       hallId,
       movieId,
@@ -98,7 +98,7 @@ export async function createReservation(
       userId,
     });
 
-    // initiate checkout session
+    // create checkout session
   } catch (error) {
     console.log("Error:", { error });
     return reply.status(500).send({ message: "Something went wrong" });
@@ -129,13 +129,6 @@ async function checkAndMaybeReserve(data: {
   sessionKey: string;
   movieId: number;
 }) {
-  const reserved = await findReservedSeatsByShowTime(
-    {
-      hallId: data.hallId,
-      time: data.time,
-    },
-    { seats: data.seats }
-  );
   // Implementation:
   // - If no reserved rows exist for any requested seat: insert reserved rows for all requested seats and
   //   set a short hold expiry (HOLD_MS) for the current request and return success + reserved rows.
@@ -144,6 +137,13 @@ async function checkAndMaybeReserve(data: {
   //   atomically set their expiry to HOLD_MS (a short hold) and return success. If not all are available, return success=false
   //   and include the list of currently available seats for error reporting.
 
+  const reserved = await findReservedSeatsByShowTime(
+    {
+      hallId: data.hallId,
+      time: data.time,
+    },
+    { seats: data.seats },
+  );
   const HOLD_MS = 5 * 60 * 1000; // 5 minutes hold for in-flight reservation
   const now = Date.now();
   const holdExpiry = new Date(now + HOLD_MS);
@@ -189,7 +189,7 @@ async function checkAndMaybeReserve(data: {
   // Re-read current rows for the requested seats (some may have been inserted above)
   const allReserved = await findReservedSeatsByShowTime(
     { hallId: data.hallId, time: data.time },
-    { seats: data.seats }
+    { seats: data.seats },
   );
 
   const availableSeatIds = allReserved
@@ -203,7 +203,7 @@ async function checkAndMaybeReserve(data: {
   // if all requested seats are available, set expiry to hold for this request
   if (availableSeatIds.length === data.seats.length) {
     const { hallId, movieId, sessionKey, userId, time } = data;
-    await atomicUpdateReservedSeats({
+    await atomicallyUpdateReservedSeats({
       availableSeatIds,
       hallId,
       holdExpiry,
@@ -215,7 +215,7 @@ async function checkAndMaybeReserve(data: {
 
     const updated = await findReservedSeatsByShowTime(
       { hallId: data.hallId, time: data.time },
-      { seats: data.seats }
+      { seats: data.seats },
     );
 
     return { success: true, reserved: updated };
@@ -225,7 +225,7 @@ async function checkAndMaybeReserve(data: {
   return { success: false, available: availableSeatIds };
 }
 
-async function atomicUpdateReservedSeats(data: {
+async function atomicallyUpdateReservedSeats(data: {
   holdExpiry: Date;
   hallId: number;
   availableSeatIds: number[];
@@ -242,8 +242,8 @@ async function atomicUpdateReservedSeats(data: {
         and(
           eq(reservedSeats.hallId, data.hallId),
           eq(reservedSeats.time, data.time),
-          inArray(reservedSeats.seatId, data.availableSeatIds)
-        )
+          inArray(reservedSeats.seatId, data.availableSeatIds),
+        ),
       );
 
     const log: LogData = {
@@ -274,14 +274,17 @@ async function validateRequestedSeats(seats: number[], hallId: number) {
 
 export async function getReservations(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   // fetch all user reseravations
 }
 
 export async function cancelReservation(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   //
 }
+
+// https://orm.drizzle.team/docs/overview
+// https://fastify.dev/docs/latest/Reference/Errors/
