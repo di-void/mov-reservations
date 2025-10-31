@@ -16,22 +16,22 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.9",
-    "@types/node": "^22.5.5",
-    "drizzle-kit": "^0.31.1",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.18.13",
+    "drizzle-kit": "^0.31.6",
     "drizzle-seed": "^0.3.1",
-    "tsx": "^4.19.4",
-    "typescript": "^5.6.2"
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@fastify/express": "^4.0.2",
-    "@libsql/client": "^0.15.8",
-    "@t3-oss/env-core": "^0.13.6",
+    "@libsql/client": "^0.15.15",
+    "@t3-oss/env-core": "^0.13.8",
     "bcryptjs": "^3.0.2",
-    "dotenv": "^16.5.0",
-    "drizzle-orm": "^0.44.1",
-    "fastify": "^5.3.3",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.7",
+    "fastify": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
-    "zod": "^3.25.48"
+    "zod": "^4.1.12"
   }
 }

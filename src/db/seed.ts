@@ -1,10 +1,11 @@
+import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { db } from ".";
 import { users } from "./schema";
 
 async function main() {
   console.log(`Running seed file...`);
-  //   await _reset();
+  await _reset();
 
   await db.insert(users).values({
     email: "admin@mov-reservations.com",

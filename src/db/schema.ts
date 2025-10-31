@@ -4,6 +4,7 @@ import {
   text,
   primaryKey,
   foreignKey,
+  unique,
 } from "drizzle-orm/sqlite-core";
 import { generateTicketId } from "../utils";
 
@@ -30,7 +31,7 @@ export const movies = sqliteTable("movies", {
   title: text().notNull(),
   description: text().notNull(),
   releaseDate: integer({ mode: "timestamp" }).notNull(),
-  duration: integer().notNull(),
+  duration: integer({ mode: "number" }).notNull(),
   rating: integer().notNull(),
   genre: text().notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -56,9 +57,7 @@ export const showTimes = sqliteTable(
       .default(new Date())
       .$onUpdateFn(() => new Date()),
   },
-  (table) => [
-    primaryKey({ columns: [table.hallId, table.movieId, table.time] }),
-  ]
+  (table) => [primaryKey({ columns: [table.hallId, table.time] })]
 );
 
 export const halls = sqliteTable("halls", {
@@ -97,41 +96,52 @@ export const hallLayouts = sqliteTable("hall_layouts", {
     .$onUpdateFn(() => new Date()),
 });
 
-// chart will be a chain of these delimited by newlines
+export type SeatType = "default";
+
 export const seats = sqliteTable(
   "seats",
   {
     id: integer().primaryKey(),
-    chart: text({ mode: "json" }).$type<string>().notNull(), // available = o, disabled = x
-    reserved: text({ mode: "json" })
-      .$type<string[]>()
-      .notNull()
-      .$defaultFn(() => []),
+    seatId: integer().notNull(),
+    type: text().$type<SeatType>().default("default"),
+    hallId: integer({ mode: "number" }).notNull(),
+  },
+  (table) => [unique().on(table.seatId, table.hallId)]
+);
+
+export const reservedSeats = sqliteTable(
+  "reserved_seats",
+  {
     hallId: integer().notNull(),
-    movieId: integer().notNull(),
-    time: integer({ mode: "timestamp" }).notNull(),
+    seatId: integer()
+      .references(() => seats.id, { onDelete: "restrict" })
+      .notNull(),
+    time: integer({ mode: "timestamp" })
+      .references(() => showTimes.time, { onDelete: "cascade" })
+      .notNull(),
+    expiresAt: integer({ mode: "timestamp" }),
   },
   (table) => [
+    unique().on(table.hallId, table.seatId, table.time),
     foreignKey({
-      columns: [table.hallId, table.movieId, table.time],
-      foreignColumns: [showTimes.hallId, showTimes.movieId, showTimes.time],
-      name: "show_time_fk",
+      columns: [table.hallId, table.time],
+      foreignColumns: [showTimes.hallId, showTimes.time],
     }),
   ]
 );
+export type NewReservedSeat = typeof reservedSeats.$inferInsert;
+export type ReservedSeat = typeof reservedSeats.$inferSelect;
 
 export const reservations = sqliteTable(
   "reservations",
   {
     id: integer().primaryKey(),
-    seats: text({ mode: "json" })
-      .$type<{ row: string; number: number }[]>()
-      .notNull(),
+    seats: text({ mode: "json" }).$type<number[]>().notNull(),
     userId: integer()
       .notNull()
       .references(() => users.id),
-    hallId: integer().notNull(),
-    movieId: integer().notNull(),
+    hallId: integer({ mode: "number" }).notNull(),
+    movieId: integer({ mode: "number" }).notNull(),
     time: integer({ mode: "timestamp" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -142,12 +152,35 @@ export const reservations = sqliteTable(
   },
   (table) => [
     foreignKey({
-      columns: [table.hallId, table.movieId, table.time],
-      foreignColumns: [showTimes.hallId, showTimes.movieId, showTimes.time],
+      columns: [table.hallId, table.time],
+      foreignColumns: [showTimes.hallId, showTimes.time],
       name: "show_time_fk",
     }),
   ]
 );
+
+export type LogData = {
+  seatIds: number[];
+  hallId: number;
+  userId: number;
+  time: Date;
+  status: "pending";
+  movieId: number;
+};
+
+export const retryLog = sqliteTable("retry_log", {
+  id: integer({ mode: "number" }).primaryKey(),
+  sessionKey: text().notNull(),
+  userId: integer()
+    .notNull()
+    .references(() => users.id),
+  data: text({ mode: "json" }).$type<LogData>().notNull(),
+  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+  updatedAt: integer({ mode: "timestamp" })
+    .notNull()
+    .default(new Date())
+    .$onUpdateFn(() => new Date()),
+});
 
 export const tickets = sqliteTable("tickets", {
   id: text().$defaultFn(() => generateTicketId()),
@@ -172,4 +205,3 @@ export const tickets = sqliteTable("tickets", {
 });
 
 export type Reservation = typeof reservations.$inferSelect;
-export type Seat = Reservation["seats"][number];
