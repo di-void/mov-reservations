@@ -80,6 +80,7 @@ export function routes(fastify: FastifyInstance, opts: any) {
         const reservationId = metadata.reservation.id;
         switch (status) {
           case "paid":
+            // update reserved seat holds
             updateTicketByReservationIdFromPolarWebhook(
               reservationId,
               { paymentStatus: "paid" },

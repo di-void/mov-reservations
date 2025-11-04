@@ -10,23 +10,21 @@ import { mapReservation } from "./mappers";
 import { getTotalAmountFromSeats } from "../../utils";
 
 export async function createReservation(
-  request: FastifyRequest<{ Body: CreateReservationBody }>,
+  request: FastifyRequest<{
+    Body: CreateReservationBody;
+    Params: { hallId: number };
+  }>,
   reply: FastifyReply
 ) {
   try {
+    const hallId = request.params.hallId;
     const result = createReservationSchema.safeParse(request.body);
 
     if (!result.success) {
       return reply.status(400).send({ errors: z.treeifyError(result.error) });
     }
 
-    const {
-      seats: requestedSeats,
-      hallId,
-      movieId,
-      time,
-      sessionKey,
-    } = result.data;
+    const { seats: requestedSeats, movieId, time, sessionKey } = result.data;
     const userId = request.user!.id;
 
     // validate showtime

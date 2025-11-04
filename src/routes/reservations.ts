@@ -8,6 +8,20 @@ import {
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.addHook("preHandler", authenticate);
 
-  fastify.get("/", getReservations);
-  fastify.post("/", createReservation);
+  fastify.get("/d", getReservations);
+  fastify.post(
+    "/:hallId",
+    {
+      schema: {
+        params: {
+          type: "object",
+          required: ["hallId"],
+          properties: {
+            hallId: { type: "number" },
+          },
+        },
+      },
+    },
+    createReservation
+  );
 }

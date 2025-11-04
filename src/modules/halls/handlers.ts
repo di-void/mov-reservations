@@ -83,3 +83,10 @@ export async function getHallLayoutHandler(
 
   reply.send(layout);
 }
+
+export async function getHallSeatChartHandler(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
+  // fetch latest hall seat chart from cache
+}
