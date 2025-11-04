@@ -78,6 +78,7 @@ export async function findReservedSeatsByShowTime(
 
 export async function insertReservation(data: {
   seats: SeatMeta[];
+  totalAmount: number;
   userId: number;
   hallId: number;
   movieId: number;

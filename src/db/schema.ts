@@ -165,6 +165,7 @@ export const reservations = sqliteTable(
     startTime: integer({ mode: "timestamp" }).notNull(),
     endTime: integer({ mode: "timestamp" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
+    totalAmount: integer({ mode: "number" }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
     cancelledAt: integer({ mode: "timestamp" }),
     updatedAt: integer({ mode: "timestamp" })
@@ -220,7 +221,7 @@ export const tickets = sqliteTable("tickets", {
   //   enum: ["credit_card", "debit_card", "bank_transfer"],
   // }).notNull(),
   refundReason: text(),
-  totalAmount: integer().notNull(),
+  totalAmount: integer({ mode: "number" }).notNull(),
   metadata: text({ mode: "json" }).$type<TicketMeta>(),
   transactionId: text(), // from payment provider
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -229,5 +230,7 @@ export const tickets = sqliteTable("tickets", {
     .default(new Date())
     .$onUpdateFn(() => new Date()),
 });
+export type NewTicket = typeof tickets.$inferInsert;
+export type Ticket = typeof tickets.$inferSelect;
 
 export type Reservation = typeof reservations.$inferSelect;

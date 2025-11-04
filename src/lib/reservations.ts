@@ -3,7 +3,6 @@ import { db } from "../db";
 import {
   LogData,
   pricingRules,
-  type Reservation,
   reservedSeats,
   retryLog,
   seats,
@@ -89,7 +88,7 @@ export async function checkAndMaybeReserve(data: {
   // if all requested seats are available, set expiry to hold for this request
   if (availableSeatIds.length === data.seats.length) {
     const { hallId, movieId, sessionKey, userId, startTime } = data;
-    await atomicallyUpdateReservedSeats({
+    await atomicallyUpdateAndLogReservedSeats({
       availableSeatIds,
       hallId,
       holdExpiry,
@@ -111,7 +110,7 @@ export async function checkAndMaybeReserve(data: {
   return { success: false, available: availableSeatIds };
 }
 
-async function atomicallyUpdateReservedSeats(data: {
+async function atomicallyUpdateAndLogReservedSeats(data: {
   holdExpiry: Date;
   hallId: number;
   availableSeatIds: number[];

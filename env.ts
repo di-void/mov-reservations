@@ -10,6 +10,7 @@ export const env = createEnv({
     JWT_SECRET: z.string().min(1),
     POLAR_TOKEN: z.string().min(1),
     POLAR_PRODUCT_ID: z.string().min(1),
+    POLAR_WEBHOOK_SECRET: z.string().min(1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

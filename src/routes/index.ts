@@ -6,6 +6,7 @@ import * as reservations from "./reservations";
 
 import { FastifyInstance } from "fastify";
 import { attachClientType } from "../middleware/auth";
+import * as polar from "./polar";
 
 export function mountRoutes(fastify: FastifyInstance, opts: any) {
   fastify.addHook("onRequest", attachClientType);
@@ -14,4 +15,5 @@ export function mountRoutes(fastify: FastifyInstance, opts: any) {
   fastify.register(movies.routes, { prefix: "/movies" });
   fastify.register(halls.routes, { prefix: "/halls" });
   fastify.register(reservations.routes, { prefix: "/reservations" });
+  fastify.register(polar.routes, { prefix: "/polar" });
 }

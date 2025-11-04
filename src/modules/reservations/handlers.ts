@@ -7,6 +7,7 @@ import logger from "../../lib/logger";
 import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
 import { mapReservation } from "./mappers";
+import { getTotalAmountFromSeats } from "../../utils";
 
 export async function createReservation(
   request: FastifyRequest<{ Body: CreateReservationBody }>,
@@ -65,15 +66,17 @@ export async function createReservation(
       });
     }
 
+    const seats = reserved.reserved?.map((r) => ({
+      seatId: r.seatId,
+      price: {
+        id: r.priceId,
+        price: r.price,
+      },
+    }))!;
     // create a pending reservation record with seat details
     const reservation = await insertReservation({
-      seats: reserved.reserved?.map((r) => ({
-        seatId: r.seatId,
-        price: {
-          id: r.priceId,
-          price: r.price,
-        },
-      }))!,
+      seats,
+      totalAmount: getTotalAmountFromSeats(seats),
       hallId,
       movieId,
       startTime,
@@ -152,8 +155,9 @@ export async function cancelReservation(
   // 1 hour away from the current time
   // if it is, reject the cancel request with info
   // if it is not within (i.e before that), reset the reserved seat holds
-  // get the ticket id and set the metadata
-  // have the refund initiator be set to system
+  // then call the payment processor with metadata about the ticket
+  // start a refund and set the ticket's state to "processing"
+  // return with info
 }
 
 // https://orm.drizzle.team/docs/overview
