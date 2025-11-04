@@ -13,24 +13,6 @@ export async function createReservation(
   reply: FastifyReply
 ) {
   try {
-    // when reservation request comes in
-    // - example: {movieId: "mv-123", seats: ["a1","a2"], hallId: "hall-2", showTime: "12:00"}
-    // load hall configs from database
-    // check that requested seats are within hall configs to ensure it's not garbage
-    // validate availability of seats for that movie showtime and hall
-    // - check reserved_seats for reserved seats for partcular showtime and hall
-    // - check the hold expiry time of requested seats
-    // - if the hold has not expired, the seat is still reserved
-    // - reject the request with error info
-    // - if the hold has expired, the seat is free; set a short hold time for the in-flight reservation
-    // - this is in case the current client abandons
-    // - we create a pending reservation record
-    // - initiate payment checkout session and redirect user to checkout url
-    // - pass metadata about the reservation to the checkout session to propery identify the client request
-    // - once payment has succeeded and we get a callback, extract metadata from webhook request
-    // - if the notification comes after the hold has expired, we set the reservation to cancelled and issue a refund
-    // - if the notification comes within the hold window, we extend the seat expiry by the movie duration
-    // - and set the reservation status to confirmed
     const result = createReservationSchema.safeParse(request.body);
 
     if (!result.success) {

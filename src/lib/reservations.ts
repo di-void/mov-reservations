@@ -20,14 +20,6 @@ export async function checkAndMaybeReserve(data: {
   sessionKey: string;
   movieId: number;
 }) {
-  // Implementation:
-  // - If no reserved rows exist for any requested seat: insert reserved rows for all requested seats and
-  //   set a short hold expiry (HOLD_MS) for the current request and return success + reserved rows.
-  // - Otherwise, ensure there are reserved rows for every requested seat (insert with expiresAt = null for missing ones),
-  //   then compute which seats are "available" (expiresAt is null or has passed). If all requested seats are available,
-  //   atomically set their expiry to HOLD_MS (a short hold) and return success. If not all are available, return success=false
-  //   and include the list of currently available seats for error reporting.
-
   const reserved = await findReservedSeatsByShowTime(
     {
       hallId: data.hallId,
@@ -192,7 +184,7 @@ async function atomicallyInsertAndRetrieveReservedSeats(data: {
         and(
           eq(reservedSeats.hallId, hallId),
           eq(reservedSeats.startTime, startTime),
-          inArray(reservedSeats.seatId, filterSeats) // TODO: not sure what happens when this is undefined
+          inArray(reservedSeats.seatId, filterSeats)
         )
       );
 
