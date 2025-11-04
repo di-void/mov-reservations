@@ -1,12 +1,16 @@
-import { and, eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or, getTableColumns } from "drizzle-orm";
 import { db } from "../../db";
 import {
   NewReservedSeat,
+  pricingRules,
   Reservation,
   reservations,
+  SeatMeta,
   reservedSeats,
   seats,
   showTimes,
+  movies,
+  halls,
 } from "../../db/schema";
 
 export async function findShowTimeByHallIdAndTime(data: {
@@ -29,9 +33,7 @@ export async function findSeatsByHallId(data: {
   return db
     .select()
     .from(seats)
-    .where(
-      and(eq(seats.hallId, data.hallId), inArray(seats.seatId, data.seats))
-    );
+    .where(and(eq(seats.hallId, data.hallId), inArray(seats.id, data.seats)));
 }
 
 export async function insertReservedSeats(seats: NewReservedSeat[]) {
@@ -41,33 +43,48 @@ export async function insertReservedSeats(seats: NewReservedSeat[]) {
     .returning();
 }
 
-// showtime = hallId + time
+// showtime = hallId + startTime
 export async function findReservedSeatsByShowTime(
-  showTime: { time: Date; hallId: number },
+  showTime: { startTime: Date; hallId: number },
   filter?: { seats: number[] }
 ) {
-  const { hallId, time } = showTime;
-  let seats = filter ? filter.seats : [];
+  const { hallId, startTime } = showTime;
+  let filterSeats = filter ? filter.seats : [];
   return db
-    .select()
+    .select({
+      ...getTableColumns(reservedSeats),
+      priceId: seats.priceId,
+      price: pricingRules.price,
+    })
     .from(reservedSeats)
+    .innerJoin(
+      seats,
+      and(
+        eq(reservedSeats.seatId, seats.id),
+        eq(reservedSeats.hallId, seats.hallId)
+      )
+    )
+    .innerJoin(pricingRules, eq(seats.priceId, pricingRules.id))
     .where(
       and(
         eq(reservedSeats.hallId, hallId),
-        eq(reservedSeats.time, time),
-        seats?.length === 0 ? undefined : inArray(reservedSeats.seatId, seats) // TODO: not sure what happens when this is undefined
+        eq(reservedSeats.startTime, startTime),
+        filterSeats?.length === 0
+          ? undefined
+          : inArray(reservedSeats.seatId, filterSeats) // TODO: not sure what happens when this is undefined
       )
     );
 }
 
 export async function insertReservation(data: {
-  seatIds: number[];
+  seats: SeatMeta[];
   userId: number;
   hallId: number;
   movieId: number;
-  time: Date;
+  startTime: Date;
+  endTime: Date;
 }) {
-  const { seatIds: seats, ...rest } = data;
+  const { seats, ...rest } = data;
   return db
     .insert(reservations)
     .values({ seats, ...rest, status: "pending" })
@@ -86,9 +103,20 @@ export async function updateReservation(
     .returning();
 }
 
-export async function getReservations(data: { userId: number }) {
+export async function findReservationsByUserId(data: { userId: number }) {
   return db
-    .select()
+    .select({
+      reservation: reservations,
+      movie: {
+        title: movies.title,
+        duration: movies.duration,
+      },
+      hall: {
+        name: halls.name,
+      },
+    })
     .from(reservations)
+    .leftJoin(movies, eq(movies.id, reservations.movieId))
+    .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(eq(reservations.userId, data.userId));
 }

@@ -1,11 +1,12 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CreateReservationBody, createReservationSchema } from "./schema";
-import { insertReservation } from "./data";
+import { findReservationsByUserId, insertReservation } from "./data";
 import { startCheckoutSession } from "../payments/handlers/checkout";
 import { checkAndMaybeReserve } from "../../lib/reservations";
-import { CustomError } from "../../lib/errors";
+import logger from "../../lib/logger";
 import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
+import { mapReservation } from "./mappers";
 
 export async function createReservation(
   request: FastifyRequest<{ Body: CreateReservationBody }>,
@@ -63,9 +64,11 @@ export async function createReservation(
       });
     }
 
+    const { startTime, endTime } = showTime;
     // check whether seats are reserved or available
     const reserved = await checkAndMaybeReserve({
-      time,
+      startTime,
+      endTime,
       hallId,
       seats: requestedSeats,
       movieId,
@@ -82,37 +85,44 @@ export async function createReservation(
 
     // create a pending reservation record with seat details
     const reservation = await insertReservation({
-      seatIds: reserved.reserved?.map((r) => r.seatId)!,
+      seats: reserved.reserved?.map((r) => ({
+        seatId: r.seatId,
+        price: {
+          id: r.priceId,
+          price: r.price,
+        },
+      }))!,
       hallId,
       movieId,
-      time,
+      startTime,
+      endTime,
       userId,
     });
 
     if (!reservation) {
       // log: we should not normally enter this branch
-      throw new CustomError(
-        "reservations",
-        "Failed to insert reservation after seats were reserved. Insert returned falsy.",
-        {
-          operation: "createReservation",
-          context: {
-            movieId,
-            hallId,
-            time,
-            userId,
-            sessionKey,
-            requestedSeats,
-            reservedCount: reserved.reserved?.length ?? 0,
-          },
-        }
-      );
+      const errMsg =
+        "Failed to insert reservation after seats were reserved. Insert returned falsy.";
+      logger.error("reservations", errMsg, {
+        operation: "createReservation",
+        context: {
+          movieId,
+          hallId,
+          time,
+          userId,
+          sessionKey,
+          requestedSeats,
+          reservedCount: reserved.reserved?.length ?? 0,
+        },
+      });
+
+      throw new Error(errMsg);
     }
 
     // create checkout session
     const checkoutSession = await startCheckoutSession(reservation);
     return reply.status(201).send({
-      message: "Pending reservation created successfully",
+      message: "Reservation created successfully. It is now in pending state",
       checkoutSession, // client will handle redirect
     });
   } catch (error) {
@@ -121,7 +131,10 @@ export async function createReservation(
   }
 }
 
-export async function retryCreateReservation() {
+export async function retryCreateReservation(
+  request: FastifyRequest,
+  reply: FastifyReply
+) {
   //
 }
 
@@ -129,16 +142,36 @@ export async function getReservations(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  // fetch all user reseravations
+  try {
+    const userId = request.user?.id!;
+    const reservations = await findReservationsByUserId({ userId });
+    return reply.send(200).send({
+      items: reservations.map((r) => mapReservation(r)),
+      page: 1,
+    });
+  } catch (error) {
+    console.log("Error:", { error });
+    return reply.status(500).send({ message: "Something went wrong" });
+  }
 }
 
 export async function cancelReservation(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  // cancel upcoming reservations
-  // free up reserved seats
-  // issue refund?
+  // check reservation status
+  // if status is cancelled, return with info that request is already cancelled
+  // if status is pending, check the hold expiry time
+  // if the time has passed, just set the reservation status to "cancelled"
+  // if the time has not yet passed, reset the seat hold (setting it to the current time or null)
+  // and set the reservation status to "cancelled"
+  // return from the request with a 200
+  // if the status is confirmed, we first check if the startTime is within
+  // 1 hour away from the current time
+  // if it is, reject the cancel request with info
+  // if it is not within (i.e before that), reset the reserved seat holds
+  // get the ticket id and set the metadata
+  // have the refund initiator be set to system
 }
 
 // https://orm.drizzle.team/docs/overview

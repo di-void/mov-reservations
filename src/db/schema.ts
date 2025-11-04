@@ -7,6 +7,7 @@ import {
   unique,
 } from "drizzle-orm/sqlite-core";
 import { generateTicketId } from "../utils";
+import { uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const ROLES = ["admin", "user"] as const;
 
@@ -31,7 +32,7 @@ export const movies = sqliteTable("movies", {
   title: text().notNull(),
   description: text().notNull(),
   releaseDate: integer({ mode: "timestamp" }).notNull(),
-  duration: integer({ mode: "number" }).notNull(),
+  duration: integer({ mode: "number" }).notNull(), // seconds
   rating: integer().notNull(),
   genre: text().notNull(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -40,6 +41,7 @@ export const movies = sqliteTable("movies", {
     .default(new Date())
     .$onUpdateFn(() => new Date()),
 });
+export type Movie = typeof movies.$inferSelect;
 
 export const showTimes = sqliteTable(
   "show_times",
@@ -70,14 +72,16 @@ export const halls = sqliteTable("halls", {
     .default(new Date())
     .$onUpdateFn(() => new Date()),
 });
+export type Hall = typeof halls.$inferSelect;
 
 export const pricingRules = sqliteTable(
   "pricing_rules",
   {
     id: integer({ mode: "number" }).primaryKey(),
-    hallId: integer().references(() => halls.id), // nullable to allow for category override
+    hallId: integer().references(() => halls.id, { onDelete: "cascade" }), // nullable to allow for category override
     category: text().notNull(),
-    price: integer({ mode: "number" }).notNull(), // stored in cents
+    price: integer({ mode: "number" }).notNull(), // in cents
+    // externalProductId: text().notNull(), // product id
   },
   (table) => [unique().on(table.hallId, table.category)]
 );
@@ -109,32 +113,33 @@ export const hallLayouts = sqliteTable("hall_layouts", {
 export const seats = sqliteTable(
   "seats",
   {
-    id: integer().primaryKey(),
-    seatId: integer().notNull(),
+    id: integer().notNull(),
     priceId: integer()
       .references(() => pricingRules.id)
       .notNull(),
     hallId: integer({ mode: "number" }).notNull(),
   },
-  (table) => [unique().on(table.seatId, table.hallId)]
+  (table) => [uniqueIndex("seats_seat_id_hall_id").on(table.id, table.hallId)]
 );
 
 export const reservedSeats = sqliteTable(
   "reserved_seats",
   {
-    hallId: integer().notNull(),
+    hallId: integer()
+      .references(() => halls.id, { onDelete: "restrict" })
+      .notNull(),
     seatId: integer()
       .references(() => seats.id, { onDelete: "restrict" })
       .notNull(),
-    time: integer({ mode: "timestamp" })
+    startTime: integer({ mode: "timestamp" })
       .references(() => showTimes.startTime, { onDelete: "cascade" })
       .notNull(),
     expiresAt: integer({ mode: "timestamp" }),
   },
   (table) => [
-    unique().on(table.hallId, table.seatId, table.time),
+    unique().on(table.hallId, table.seatId, table.startTime),
     foreignKey({
-      columns: [table.hallId, table.time],
+      columns: [table.hallId, table.startTime],
       foreignColumns: [showTimes.hallId, showTimes.startTime],
     }),
   ]
@@ -142,11 +147,16 @@ export const reservedSeats = sqliteTable(
 export type NewReservedSeat = typeof reservedSeats.$inferInsert;
 export type ReservedSeat = typeof reservedSeats.$inferSelect;
 
+export type PriceMeta = { id: number; price: number };
+export type SeatMeta = {
+  seatId: number;
+  price: PriceMeta;
+};
 export const reservations = sqliteTable(
   "reservations",
   {
     id: integer().primaryKey(),
-    seats: text({ mode: "json" }).$type<number[]>().notNull(),
+    seats: text({ mode: "json" }).$type<SeatMeta[]>().notNull(),
     userId: integer()
       .notNull()
       .references(() => users.id),
@@ -156,6 +166,7 @@ export const reservations = sqliteTable(
     endTime: integer({ mode: "timestamp" }).notNull(),
     status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
+    cancelledAt: integer({ mode: "timestamp" }),
     updatedAt: integer({ mode: "timestamp" })
       .notNull()
       .default(new Date())
@@ -174,7 +185,7 @@ export type LogData = {
   seatIds: number[];
   hallId: number;
   userId: number;
-  time: Date;
+  startTime: Date;
   status: "pending";
   movieId: number;
 };
@@ -193,6 +204,10 @@ export const retryLog = sqliteTable("retry_log", {
     .$onUpdateFn(() => new Date()),
 });
 
+export type TicketMeta = {
+  refund?: { initiator: "system" | "user"; [x: string]: any };
+  [x: string]: any;
+};
 export const tickets = sqliteTable("tickets", {
   id: text().$defaultFn(() => generateTicketId()),
   reservationId: integer()
@@ -201,12 +216,12 @@ export const tickets = sqliteTable("tickets", {
   paymentStatus: text({
     enum: ["pending", "processing", "failed", "paid", "refunded"],
   }).notNull(),
-  paymentMethod: text({
-    enum: ["credit_card", "debit_card", "bank_transfer"],
-  }).notNull(),
+  // paymentMethod: text({
+  //   enum: ["credit_card", "debit_card", "bank_transfer"],
+  // }).notNull(),
   refundReason: text(),
   totalAmount: integer().notNull(),
-  metadata: text({ mode: "json" }),
+  metadata: text({ mode: "json" }).$type<TicketMeta>(),
   transactionId: text(), // from payment provider
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
   updatedAt: integer({ mode: "timestamp" })

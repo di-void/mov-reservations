@@ -1,16 +1,41 @@
 import { type Reservation } from "../../../db/schema";
+import { env } from "../../../../env";
+import { polar } from "../../../lib/polar";
+import {
+  getTotalAmountFromSeats,
+  serializeSeatsMeta,
+  transformUserIdToExternalCustomerId,
+} from "../../../utils";
 
 export async function startCheckoutSession(
   reservation: Reservation
 ): Promise<{ redirectUrl: string }> {
-  // get the priceIds for the reserved seats
-  // and use this to fetch their product ids
-  // extract product ids from reservation record
-  // also construct metadata info for callback
-  // it should contain virtually all the keys inside the reservation record with
-  // our user id as the "external_customer_id" for the payment processor
-  // then we call payment processor with product ids and all required info
-  // if this is successful, we will get back a url for the checkout session
-  // sanitize and encode url before returning it to the caller
-  return { redirectUrl: "" };
+  const userId = reservation.userId;
+  const totalAmount = getTotalAmountFromSeats(reservation.seats);
+  const {
+    createdAt,
+    updatedAt,
+    cancelledAt,
+    startTime,
+    endTime,
+    seats,
+    ...rest
+  } = reservation;
+
+  const meta = {
+    ...rest,
+    seats: serializeSeatsMeta(seats),
+    startTime: startTime.toDateString(),
+    endTime: endTime.toDateString(),
+  };
+
+  const session = await polar.checkouts.create({
+    products: [env.POLAR_PRODUCT_ID],
+    externalCustomerId: transformUserIdToExternalCustomerId(userId),
+    amount: totalAmount,
+    metadata: meta,
+  });
+
+  const safeUrl = new URL(session.url);
+  return { redirectUrl: safeUrl.toString() };
 }
