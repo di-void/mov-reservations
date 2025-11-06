@@ -29,7 +29,7 @@ export const checkoutMetadataSchema = z.object({
     movieId: z.number().positive(),
     totalAmount: z.number().positive(),
     status: z.string().refine((arg) => arg === "pending"),
-    seats: z.string(),
+    seats: z.array(z.number()),
     startTime: z.coerce.date(),
     endTime: z.coerce.date(),
   }),

@@ -7,7 +7,6 @@ import {
   unique,
 } from "drizzle-orm/sqlite-core";
 import { generateTicketId } from "../utils";
-import { uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const ROLES = ["admin", "user"] as const;
 
@@ -117,30 +116,36 @@ export const seats = sqliteTable(
     priceId: integer()
       .references(() => pricingRules.id)
       .notNull(),
-    hallId: integer({ mode: "number" }).notNull(),
+    hallId: integer({ mode: "number" })
+      .references(() => halls.id)
+      .notNull(),
   },
-  (table) => [uniqueIndex("seats_seat_id_hall_id").on(table.id, table.hallId)]
+  (table) => [
+    primaryKey({
+      columns: [table.id, table.hallId],
+    }),
+  ]
 );
 
 export const reservedSeats = sqliteTable(
   "reserved_seats",
   {
-    hallId: integer()
-      .references(() => halls.id, { onDelete: "restrict" })
-      .notNull(),
-    seatId: integer()
-      .references(() => seats.id, { onDelete: "restrict" })
-      .notNull(),
-    startTime: integer({ mode: "timestamp" })
-      .references(() => showTimes.startTime, { onDelete: "cascade" })
-      .notNull(),
+    hallId: integer().notNull(),
+    seatId: integer().notNull(),
+    startTime: integer({ mode: "timestamp" }),
     expiresAt: integer({ mode: "timestamp" }),
   },
   (table) => [
-    unique().on(table.hallId, table.seatId, table.startTime),
+    primaryKey({
+      columns: [table.hallId, table.seatId, table.startTime],
+    }),
     foreignKey({
       columns: [table.hallId, table.startTime],
       foreignColumns: [showTimes.hallId, showTimes.startTime],
+    }),
+    foreignKey({
+      columns: [table.hallId, table.seatId],
+      foreignColumns: [seats.hallId, seats.id],
     }),
   ]
 );

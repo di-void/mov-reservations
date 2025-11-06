@@ -1,6 +1,13 @@
+import { and, eq, inArray } from "drizzle-orm";
 import { createNewTicket, updateTicketByReservationId } from ".";
-import { type NewTicket } from "../../../db/schema";
+import { db } from "../../../db";
+import {
+  type NewTicket,
+  reservations,
+  reservedSeats,
+} from "../../../db/schema";
 import logger from "../../../lib/logger";
+import type { CheckoutMetaData } from "../../../utils";
 
 type WebHookEvent = "onCheckoutUpdated" | "onOrderUpdated";
 const moduleName = "polar/webhooks";
@@ -54,6 +61,44 @@ export async function updateTicketByReservationIdFromPolarWebhook(
         ...context,
         updatedTicket,
       },
+    });
+  } catch (error) {
+    logger.error(moduleName, "Failed to update ticket payment status", {
+      operation: webHookEvent,
+      context: {
+        ...context,
+        error,
+      },
+    });
+  }
+}
+
+export async function updateReservedSeatHoldsFromPolarWebhook(
+  reservation: CheckoutMetaData["reservation"],
+  webHookEvent: WebHookEvent,
+  context: Record<string, unknown>
+) {
+  try {
+    const seats = reservation.seats;
+    await db.transaction(async (tx) => {
+      await tx
+        .update(reservedSeats)
+        .set({
+          expiresAt: reservation.endTime,
+        })
+        .where(
+          and(
+            inArray(reservedSeats.seatId, seats),
+            eq(reservedSeats.hallId, reservation.hallId)
+          )
+        );
+
+      await tx
+        .update(reservations)
+        .set({
+          status: "confirmed",
+        })
+        .where(eq(reservations.id, reservation.id));
     });
   } catch (error) {
     logger.error(moduleName, "Failed to update ticket payment status", {

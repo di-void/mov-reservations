@@ -3,7 +3,6 @@ import { env } from "../../../../env";
 import { polar } from "../../../lib/polar";
 import {
   serializeCheckoutMetaData,
-  stringifySeatsMeta,
   transformUserIdToExternalCustomerId,
 } from "../../../utils";
 
@@ -30,7 +29,7 @@ export async function startCheckoutSession(
       endTime,
       hallId,
       movieId,
-      seats: stringifySeatsMeta(seats),
+      seats: seats.map((s) => s.seatId),
       totalAmount,
       status,
     },

@@ -5,6 +5,7 @@ import { parseCheckoutMetaData } from "../utils";
 import logger from "../lib/logger";
 import {
   createNewTicketFromPolarWebhook,
+  updateReservedSeatHoldsFromPolarWebhook,
   updateTicketByReservationIdFromPolarWebhook,
 } from "../modules/tickets/handlers/polar";
 
@@ -77,20 +78,29 @@ export function routes(fastify: FastifyInstance, opts: any) {
           return;
         }
 
-        const reservationId = metadata.reservation.id;
+        const reservation = metadata.reservation;
         switch (status) {
           case "paid":
-            // update reserved seat holds
+            // wait for seat holds to be updated
+            await updateReservedSeatHoldsFromPolarWebhook(
+              reservation,
+              "onOrderUpdated",
+              { status, metadata }
+            );
+
+            // asynchronously update the ticket
             updateTicketByReservationIdFromPolarWebhook(
-              reservationId,
+              reservation.id,
               { paymentStatus: "paid" },
               "onOrderUpdated",
               { status, metadata }
             );
+
+            // then delete the retry log
             return;
           case "refunded":
             updateTicketByReservationIdFromPolarWebhook(
-              reservationId,
+              reservation.id,
               { paymentStatus: "refunded" },
               "onOrderUpdated",
               { status, metadata }

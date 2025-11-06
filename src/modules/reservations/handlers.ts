@@ -128,7 +128,7 @@ export async function getReservations(
   try {
     const userId = request.user?.id!;
     const reservations = await findReservationsByUserId({ userId });
-    return reply.send(200).send({
+    return reply.status(200).send({
       items: reservations.map((r) => mapReservation(r)),
       page: 1,
     });

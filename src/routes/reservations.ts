@@ -8,7 +8,7 @@ import {
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.addHook("preHandler", authenticate);
 
-  fastify.get("/d", getReservations);
+  fastify.get("/", getReservations);
   fastify.post(
     "/:hallId",
     {
