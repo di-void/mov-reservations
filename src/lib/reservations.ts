@@ -119,7 +119,7 @@ async function atomicallyUpdateAndLogReservedSeats(data: {
   userId: number;
   sessionKey: string;
 }) {
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     await tx
       .update(reservedSeats)
       .set({ expiresAt: data.holdExpiry })
