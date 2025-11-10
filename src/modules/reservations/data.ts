@@ -121,3 +121,45 @@ export async function findReservationsByUserId(data: { userId: number }) {
     .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(eq(reservations.userId, data.userId));
 }
+
+export async function findReservationById(id: number) {
+  return db
+    .select({
+      reservation: reservations,
+      movie: {
+        title: movies.title,
+        duration: movies.duration,
+      },
+      hall: {
+        name: halls.name,
+      },
+    })
+    .from(reservations)
+    .leftJoin(movies, eq(movies.id, reservations.movieId))
+    .leftJoin(halls, eq(reservations.hallId, halls.id))
+    .where(eq(reservations.id, id))
+    .limit(1);
+}
+
+export async function findReservationByIdAndUserId(data: {
+  userId: number;
+  id: number;
+}) {
+  const { userId, id } = data;
+  return db
+    .select({
+      reservation: reservations,
+      movie: {
+        title: movies.title,
+        duration: movies.duration,
+      },
+      hall: {
+        name: halls.name,
+      },
+    })
+    .from(reservations)
+    .leftJoin(movies, eq(movies.id, reservations.movieId))
+    .leftJoin(halls, eq(reservations.hallId, halls.id))
+    .where(and(eq(reservations.id, id), eq(reservations.userId, userId)))
+    .limit(1);
+}

@@ -169,7 +169,9 @@ export const reservations = sqliteTable(
     movieId: integer({ mode: "number" }).notNull(),
     startTime: integer({ mode: "timestamp" }).notNull(),
     endTime: integer({ mode: "timestamp" }).notNull(),
-    status: text({ enum: ["pending", "confirmed", "cancelled"] }).notNull(),
+    status: text({
+      enum: ["pending", "confirmed", "active", "cancelled"],
+    }).notNull(),
     totalAmount: integer({ mode: "number" }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
     cancelledAt: integer({ mode: "timestamp" }),
@@ -186,6 +188,8 @@ export const reservations = sqliteTable(
     }),
   ]
 );
+
+export type Reservation = typeof reservations.$inferSelect;
 
 export type LogData = {
   seatIds: number[];
@@ -237,5 +241,3 @@ export const tickets = sqliteTable("tickets", {
 });
 export type NewTicket = typeof tickets.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
-
-export type Reservation = typeof reservations.$inferSelect;

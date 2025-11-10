@@ -1,6 +1,12 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CreateReservationBody, createReservationSchema } from "./schema";
-import { findReservationsByUserId, insertReservation } from "./data";
+import {
+  findReservationByIdAndUserId,
+  findReservationById,
+  findReservationsByUserId,
+  insertReservation,
+  updateReservation,
+} from "./data";
 import { startCheckoutSession } from "../payments/handlers/checkout";
 import { checkAndMaybeReserve } from "../../lib/reservations";
 import logger from "../../lib/logger";
@@ -21,7 +27,10 @@ export async function createReservation(
     const result = createReservationSchema.safeParse(request.body);
 
     if (!result.success) {
-      return reply.status(400).send({ errors: z.treeifyError(result.error) });
+      return reply.status(422).send({
+        message: "Failed to parse body",
+        errors: z.treeifyError(result.error),
+      });
     }
 
     const { seats: requestedSeats, movieId, time, sessionKey } = result.data;
@@ -121,7 +130,7 @@ export async function retryCreateReservation(
   //
 }
 
-export async function getReservations(
+export async function getAllUserReservations(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
@@ -131,6 +140,113 @@ export async function getReservations(
     return reply.status(200).send({
       items: reservations.map((r) => mapReservation(r)),
       page: 1,
+    });
+  } catch (error) {
+    console.log("Error:", { error });
+    return reply.status(500).send({ message: "Something went wrong" });
+  }
+}
+
+export async function getReservation(
+  request: FastifyRequest<{ Params: { id: number } }>,
+  reply: FastifyReply
+) {
+  try {
+    const reservationId = request.params.id;
+    const userId = request.user?.id!;
+
+    const [r] = await findReservationByIdAndUserId({
+      userId,
+      id: reservationId,
+    });
+
+    if (!r) {
+      return reply.status(404).send({
+        message: "Reservation not found",
+        errors: { id: reservationId },
+      });
+    }
+
+    const { reservation, movie, hall } = r;
+
+    return reply.status(200).send({
+      reservation: mapReservation({ reservation, movie, hall }),
+    });
+  } catch (error) {
+    console.log("Error:", { error });
+    return reply.status(500).send({ message: "Something went wrong" });
+  }
+}
+
+export async function confirmReservation(
+  request: FastifyRequest<{ Params: { id: number } }>,
+  reply: FastifyReply
+) {
+  try {
+    const reservationId = request.params.id;
+    // Find the reservation first
+    const [r] = await findReservationById(reservationId);
+
+    if (!r) {
+      return reply.status(404).send({
+        message: "Reservation not found",
+        errors: { id: reservationId },
+      });
+    }
+
+    const { reservation, movie, hall } = r;
+
+    // If reservation is already confirmed, return it as is
+    if (reservation.status === "confirmed") {
+      return reply.status(200).send({
+        message: "Reservation is already confirmed",
+        reservation: mapReservation({ reservation, movie, hall }),
+      });
+    }
+
+    if (reservation.status === "active") {
+      return reply.status(200).send({
+        message: "Reservation is already confirmed",
+        reservation: mapReservation({ reservation, movie, hall }),
+      });
+    }
+
+    // Update reservation status to confirmed if it's in pending state
+    if (reservation.status === "pending") {
+      const [updatedReservation] = await updateReservation(reservationId, {
+        status: "confirmed",
+      });
+
+      if (!updatedReservation) {
+        logger.error("reservations", "Could not update reservation", {
+          operation: "confirmReservation",
+          context: { reservationId },
+        });
+        throw new Error("Could not update reservation");
+      }
+
+      return reply.status(200).send({
+        message: "Reservation confirmed successfully",
+        reservation: mapReservation({
+          reservation: updatedReservation,
+          movie,
+          hall,
+        }),
+      });
+    }
+
+    // If reservation is cancelled, we can't confirm it
+    if (reservation.status === "cancelled") {
+      return reply.status(400).send({
+        message: "Cannot confirm a cancelled reservation",
+        errors: { id: reservationId, status: reservation.status },
+      });
+    }
+
+    // This should not happen as we have handled all statuses
+    return reply.status(400).send({
+      message: "Invalid reservation status",
+      errors: { id: reservationId, status: reservation.status },
     });
   } catch (error) {
     console.log("Error:", { error });

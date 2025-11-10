@@ -9,7 +9,7 @@ declare module "fastify" {
       email: string;
       role: string;
     };
-    clientType?: string;
+    clientType?: ClientType;
   }
 }
 
@@ -53,6 +53,8 @@ export async function isAdmin(request: FastifyRequest, reply: FastifyReply) {
 const querySchema = z.object({
   client: z.enum(["web", "mobile"]).optional().default("web"),
 });
+
+type ClientType = z.infer<typeof querySchema>["client"];
 
 export async function attachClientType(
   request: FastifyRequest,

@@ -1,14 +1,29 @@
 import { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth";
 import {
+  confirmReservation,
   createReservation,
-  getReservations,
+  getAllUserReservations,
+  getReservation,
 } from "../modules/reservations/handlers";
+
+const IdParamJsonSchema = {
+  schema: {
+    params: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "number" } },
+    },
+  },
+};
 
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.addHook("preHandler", authenticate);
 
-  fastify.get("/", getReservations);
+  fastify.get("/", getAllUserReservations);
+  fastify.get("/:id", IdParamJsonSchema, getReservation);
+  fastify.patch("/:id/confirm", IdParamJsonSchema, confirmReservation);
+
   fastify.post(
     "/:hallId",
     {

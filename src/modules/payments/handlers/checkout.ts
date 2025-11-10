@@ -1,10 +1,7 @@
 import { type Reservation } from "../../../db/schema";
 import { env } from "../../../../env";
-import { polar } from "../../../lib/polar";
-import {
-  serializeCheckoutMetaData,
-  transformUserIdToExternalCustomerId,
-} from "../../../utils";
+import { stripe } from "../../../lib/stripe";
+import { serializeCheckoutMetaData } from "../../../utils";
 
 export async function startCheckoutSession(
   reservation: Reservation
@@ -35,15 +32,26 @@ export async function startCheckoutSession(
     },
   });
 
-  const session = await polar.checkouts.create({
-    products: [env.POLAR_PRODUCT_ID],
-    externalCustomerId: transformUserIdToExternalCustomerId(userId),
-    amount: totalAmount,
+  const session = await stripe.checkout.sessions.create({
+    // success_url: "",
+    line_items: [
+      {
+        price_data: {
+          currency: "USD",
+          product: env.STRIPE_PRODUCT_ID,
+          unit_amount: totalAmount,
+        },
+      },
+    ],
+    mode: "payment",
     metadata: {
       meta,
     },
   });
 
-  const safeUrl = new URL(session.url);
+  const safeUrl = new URL(session.url!); // unsafe: url is nullable
   return { redirectUrl: safeUrl.toString() };
 }
+
+// https://docs.stripe.com/products-prices/manage-prices
+// https://docs.stripe.com/api/checkout/sessions/create?lang=node
