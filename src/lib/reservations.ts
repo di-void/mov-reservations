@@ -24,7 +24,7 @@ export async function checkAndMaybeReserve(data: {
       hallId: data.hallId,
       startTime: data.startTime,
     },
-    { seats: data.seats }
+    { seats: data.seats } // filter
   );
   const HOLD_MS = 5 * 60 * 1000; // 5 minutes hold for in-flight reservation
   const now = Date.now();
@@ -74,7 +74,7 @@ export async function checkAndMaybeReserve(data: {
   // Re-read current rows for the requested seats (some may have been inserted above)
   const allReserved = await findReservedSeatsByShowTime(
     { hallId: data.hallId, startTime: data.startTime },
-    { seats: data.seats }
+    { seats: data.seats } // filter
   );
 
   const availableSeatIds = allReserved

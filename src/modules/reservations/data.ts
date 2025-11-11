@@ -23,7 +23,7 @@ export async function findShowTimeByHallIdAndTime(data: {
     .where(
       and(eq(showTimes.hallId, data.hallId), eq(showTimes.startTime, data.time))
     )
-    .then((res) => res[0]);
+    .then((r) => r.at(0));
 }
 
 export async function findSeatsByHallId(data: {
@@ -85,12 +85,11 @@ export async function insertReservation(data: {
   startTime: Date;
   endTime: Date;
 }) {
-  const { seats, ...rest } = data;
   return db
     .insert(reservations)
-    .values({ seats, ...rest, status: "pending" })
+    .values({ ...data, status: "pending" })
     .returning()
-    .then((res) => res[0]);
+    .then((r) => r.at(0));
 }
 
 export async function updateReservation(

@@ -22,11 +22,12 @@ function buildPayload(
   };
 
   if (opts?.error) {
-    if (opts.error instanceof Error) {
-      payload.error = { message: opts.error.message, stack: opts.error.stack };
-    } else {
-      payload.error = opts.error;
-    }
+    payload.error = opts.error;
+    // if (opts.error instanceof Error) {
+    //   payload.error = { message: opts.error.message, stack: opts.error.stack };
+    // } else {
+    //   payload.error = opts.error;
+    // }
   }
 
   return payload;
@@ -34,7 +35,7 @@ function buildPayload(
 
 function safeStringify(obj: unknown) {
   try {
-    return JSON.stringify(obj);
+    return JSON.stringify(obj, null, 2);
   } catch {
     return String(obj);
   }
@@ -45,7 +46,7 @@ export const logger = {
     const p = buildPayload("info", moduleName, message, opts);
     // Info logs to stdout
     try {
-      console.log(JSON.stringify(p));
+      console.log(JSON.stringify(p, null, 2));
     } catch {
       console.log(`[${moduleName}] ${message}`);
       if (opts?.context) console.log("Context:", opts.context);
@@ -55,7 +56,7 @@ export const logger = {
   warn(moduleName: string, message: string, opts?: LogOpts) {
     const p = buildPayload("warn", moduleName, message, opts);
     try {
-      console.warn(JSON.stringify(p));
+      console.warn(JSON.stringify(p, null, 2));
     } catch {
       console.warn(`[${moduleName}] ${message}`);
       if (opts?.context) console.warn("Context:", opts.context);
@@ -65,7 +66,8 @@ export const logger = {
   error(moduleName: string, message: string, opts?: LogOpts) {
     const p = buildPayload("error", moduleName, message, opts);
     try {
-      console.error(JSON.stringify(p));
+      // Print JSON payload without the error.stack (so JSON stays readable)
+      console.error(JSON.stringify(p, null, 2));
     } catch {
       console.error(`[${moduleName}] ${message}`);
       if (opts?.context) console.error("Context:", opts.context);
@@ -78,8 +80,8 @@ export const logger = {
     try {
       // debug to stdout; in production, debug might be filtered
       console.debug
-        ? console.debug(JSON.stringify(p))
-        : console.log(JSON.stringify(p));
+        ? console.debug(JSON.stringify(p, null, 2))
+        : console.log(JSON.stringify(p, null, 2));
     } catch {
       console.log(`[${moduleName}] ${message}`);
       if (opts?.context) console.log("Context:", opts.context);

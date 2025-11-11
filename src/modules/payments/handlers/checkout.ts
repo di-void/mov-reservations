@@ -33,7 +33,7 @@ export async function startCheckoutSession(
   });
 
   const session = await stripe.checkout.sessions.create({
-    // success_url: "",
+    success_url: "https://example.com",
     line_items: [
       {
         price_data: {
@@ -41,6 +41,7 @@ export async function startCheckoutSession(
           product: env.STRIPE_PRODUCT_ID,
           unit_amount: totalAmount,
         },
+        quantity: 1,
       },
     ],
     mode: "payment",

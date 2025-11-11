@@ -55,3 +55,26 @@ export function parseCheckoutMetaData(meta: unknown) {
   const { data } = res;
   return data;
 }
+
+type Success<T> = {
+  data: T;
+  error: null;
+};
+
+type Failure<E> = {
+  data: null;
+  error: E;
+};
+
+type Result<T, E = Error> = Success<T> | Failure<E>;
+
+export async function tryCatch<T, E = Error>(
+  operation: Promise<T>
+): Promise<Result<T, E>> {
+  try {
+    const result = await operation;
+    return { data: result, error: null };
+  } catch (error) {
+    return { data: null, error: error as E };
+  }
+}

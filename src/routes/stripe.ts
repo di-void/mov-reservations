@@ -8,6 +8,14 @@ import { handleCompletedCheckoutSession } from "../modules/tickets/handlers/stri
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.removeContentTypeParser(["application/json"]); // disable body parsing
 
+  fastify.addContentTypeParser(
+    "application/json",
+    { parseAs: "buffer" },
+    function (req, body, done) {
+      done(null, body); // let body fallthrough
+    }
+  );
+
   fastify.post(
     "/webhooks",
     async function (request: FastifyRequest, reply: FastifyReply) {
@@ -64,7 +72,9 @@ export function routes(fastify: FastifyInstance, opts: any) {
 
         return reply.status(200).send({ received: true });
       } catch (error) {
-        console.error("Error processing event:", { error });
+        logger.error("stripe/webhooks", "Error processing event", {
+          error,
+        });
         return reply.status(400).send({ error: "Couldn't process event" });
       }
     }

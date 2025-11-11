@@ -13,7 +13,7 @@ import logger from "../../lib/logger";
 import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
 import { mapReservation } from "./mappers";
-import { getTotalAmountFromSeats } from "../../utils";
+import { getTotalAmountFromSeats, tryCatch } from "../../utils";
 
 export async function createReservation(
   request: FastifyRequest<{
@@ -55,7 +55,6 @@ export async function createReservation(
     }
 
     const { startTime, endTime } = showTime;
-    // check whether seats are reserved or available
     const reserved = await checkAndMaybeReserve({
       startTime,
       endTime,
@@ -67,7 +66,7 @@ export async function createReservation(
     });
     if (!reserved.success) {
       return reply.status(422).send({
-        message: "Couldn't create reservation for requested seats",
+        message: "Could not reserve requested seats",
         requested: requestedSeats,
         available: reserved.available,
       });
@@ -80,6 +79,7 @@ export async function createReservation(
         price: r.price,
       },
     }))!;
+
     // create a pending reservation record with seat details
     const reservation = await insertReservation({
       seats,
@@ -112,12 +112,27 @@ export async function createReservation(
     }
 
     // create checkout session
-    const checkoutSession = await startCheckoutSession(reservation);
+    const { error, data: checkoutSession } = await tryCatch(
+      startCheckoutSession(reservation)
+    );
+    if (error) {
+      logger.error("reservations", "Failed to start checkout session", {
+        operation: "createReservation:startCheckoutSession",
+        error,
+      });
+      // rollback; delete reservation and release seat holds
+      // log
+      return reply
+        .status(500)
+        .send({ message: "Failed to create reservation" });
+    }
+
     return reply.status(201).send({
       message: "Reservation created successfully. It is now in pending state",
       checkoutSession, // client will handle redirect
     });
   } catch (error) {
+    // console.error("Error creating rservation:", { error });
     logger.error("reservations", "Error creating reservation", {
       operation: "createReservation",
       error,
