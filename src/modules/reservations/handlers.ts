@@ -80,7 +80,8 @@ export async function createReservation(
       },
     }))!;
 
-    // create a pending reservation record with seat details
+    // TODO: atomically set seat holds and create pending reservation
+    // so that we can rollback in case of failure
     const reservation = await insertReservation({
       seats,
       totalAmount: getTotalAmountFromSeats(seats),
@@ -120,8 +121,8 @@ export async function createReservation(
         operation: "createReservation:startCheckoutSession",
         error,
       });
-      // rollback; delete reservation and release seat holds
-      // log
+      // TODO: in case checkout fails, rollback reservation
+      // release seat holds and delete pending reservation
       return reply
         .status(500)
         .send({ message: "Failed to create reservation" });

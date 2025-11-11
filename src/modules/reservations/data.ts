@@ -71,7 +71,7 @@ export async function findReservedSeatsByShowTime(
         eq(reservedSeats.startTime, startTime),
         filterSeats?.length === 0
           ? undefined
-          : inArray(reservedSeats.seatId, filterSeats) // TODO: not sure what happens when this is undefined
+          : inArray(reservedSeats.seatId, filterSeats) // NOTE: not exactly sure what happens when this is undefined
       )
     );
 }

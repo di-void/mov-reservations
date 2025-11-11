@@ -2,6 +2,7 @@ import { type Reservation } from "../../../db/schema";
 import { env } from "../../../../env";
 import { stripe } from "../../../lib/stripe";
 import { serializeCheckoutMetaData } from "../../../utils";
+import { STRIPE_SUCCESS_URL } from "../../../lib/constants";
 
 export async function startCheckoutSession(
   reservation: Reservation
@@ -33,7 +34,7 @@ export async function startCheckoutSession(
   });
 
   const session = await stripe.checkout.sessions.create({
-    success_url: "https://example.com",
+    success_url: STRIPE_SUCCESS_URL,
     line_items: [
       {
         price_data: {
