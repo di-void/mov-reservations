@@ -101,7 +101,9 @@ export async function updateReservation(
     .update(reservations)
     .set(data)
     .where(eq(reservations.id, id))
-    .returning();
+    .returning()
+    .limit(1)
+    .then((r) => r.at(0));
 }
 
 export async function findReservationsByUserId(data: { userId: number }) {
@@ -138,7 +140,8 @@ export async function findReservationById(id: number) {
     .leftJoin(movies, eq(movies.id, reservations.movieId))
     .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(eq(reservations.id, id))
-    .limit(1);
+    .limit(1)
+    .then((r) => r.at(0));
 }
 
 export async function findReservationByIdAndUserId(data: {
@@ -161,5 +164,6 @@ export async function findReservationByIdAndUserId(data: {
     .leftJoin(movies, eq(movies.id, reservations.movieId))
     .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(and(eq(reservations.id, id), eq(reservations.userId, userId)))
-    .limit(1);
+    .limit(1)
+    .then((r) => r.at(0));
 }

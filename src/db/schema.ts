@@ -219,7 +219,9 @@ export type TicketMeta = {
   [x: string]: any;
 };
 export const tickets = sqliteTable("tickets", {
-  id: text().$defaultFn(() => generateTicketId()),
+  id: text()
+    .$defaultFn(() => generateTicketId())
+    .primaryKey(),
   reservationId: integer()
     .notNull()
     .references(() => reservations.id),
@@ -230,7 +232,7 @@ export const tickets = sqliteTable("tickets", {
   //   enum: ["credit_card", "debit_card", "bank_transfer"],
   // }).notNull(),
   refundReason: text(),
-  totalAmount: integer({ mode: "number" }).notNull(),
+  totalAmount: integer({ mode: "number" }).notNull(), // in cents
   metadata: text({ mode: "json" }).$type<TicketMeta>(),
   transactionId: text(), // from payment provider
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),

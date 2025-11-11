@@ -118,7 +118,10 @@ export async function createReservation(
       checkoutSession, // client will handle redirect
     });
   } catch (error) {
-    console.log("Error:", { error });
+    logger.error("reservations", "Error creating reservation", {
+      operation: "createReservation",
+      error,
+    });
     return reply.status(500).send({ message: "Something went wrong" });
   }
 }
@@ -142,7 +145,10 @@ export async function getAllUserReservations(
       page: 1,
     });
   } catch (error) {
-    console.log("Error:", { error });
+    logger.error("reservations", "Error getting all reservations", {
+      operation: "getAllUserReservations",
+      error,
+    });
     return reply.status(500).send({ message: "Something went wrong" });
   }
 }
@@ -155,7 +161,7 @@ export async function getReservation(
     const reservationId = request.params.id;
     const userId = request.user?.id!;
 
-    const [r] = await findReservationByIdAndUserId({
+    const r = await findReservationByIdAndUserId({
       userId,
       id: reservationId,
     });
@@ -173,7 +179,10 @@ export async function getReservation(
       reservation: mapReservation({ reservation, movie, hall }),
     });
   } catch (error) {
-    console.log("Error:", { error });
+    logger.error("reservations", "Error getting reservation", {
+      operation: "getReservation",
+      error,
+    });
     return reply.status(500).send({ message: "Something went wrong" });
   }
 }
@@ -182,10 +191,11 @@ export async function confirmReservation(
   request: FastifyRequest<{ Params: { id: number } }>,
   reply: FastifyReply
 ) {
+  const reservationId = request.params.id;
+
   try {
-    const reservationId = request.params.id;
     // Find the reservation first
-    const [r] = await findReservationById(reservationId);
+    const r = await findReservationById(reservationId);
 
     if (!r) {
       return reply.status(404).send({
@@ -213,15 +223,11 @@ export async function confirmReservation(
 
     // Update reservation status to confirmed if it's in pending state
     if (reservation.status === "pending") {
-      const [updatedReservation] = await updateReservation(reservationId, {
+      const updatedReservation = await updateReservation(reservationId, {
         status: "confirmed",
       });
 
       if (!updatedReservation) {
-        logger.error("reservations", "Could not update reservation", {
-          operation: "confirmReservation",
-          context: { reservationId },
-        });
         throw new Error("Could not update reservation");
       }
 
@@ -244,12 +250,25 @@ export async function confirmReservation(
     }
 
     // This should not happen as we have handled all statuses
+    logger.debug(
+      "reservations",
+      "Assertion Failed! Received invalid reservation status",
+      {
+        operation: "confirmReservation",
+        context: { reservationId },
+      }
+    );
+
     return reply.status(400).send({
       message: "Invalid reservation status",
       errors: { id: reservationId, status: reservation.status },
     });
   } catch (error) {
-    console.log("Error:", { error });
+    logger.error("reservations", "Error confirming reservation", {
+      operation: "confirmReservation",
+      context: { reservationId },
+      error,
+    });
     return reply.status(500).send({ message: "Something went wrong" });
   }
 }
