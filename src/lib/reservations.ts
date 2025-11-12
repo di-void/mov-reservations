@@ -15,9 +15,6 @@ async function tryInitReservedSeats(data: {
     startTime: data.showTime.startTime,
   }));
 
-  // check if requested seats have already been initialized
-  // early return if they are already initialized
-  // if not, initialize the seats with null expiry
   await db
     .insert(reservedSeats)
     .values(values)
@@ -97,8 +94,6 @@ export async function atomicallyCreateReservation(data: {
   const availableSeatIds = available.map((a) => a.seatId);
 
   if (availableSeatIds.length === 0) {
-    // if available rows are 0, then all requested seats
-    // are definitely not available; return early with error info
     return { success: false, available: availableSeatIds };
   }
 
