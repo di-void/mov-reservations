@@ -136,3 +136,35 @@ export async function atomicallyCreateReservation(data: {
 
   return { success: true, reservation };
 }
+
+export async function rollbackReservation(data: {
+  reservationId: number;
+  showTime: { hallId: number; startTime: Date };
+  seats: number[];
+}) {
+  const { reservationId, seats, showTime } = data;
+
+  await db.transaction(async (tx) => {
+    // release seat holds
+    await tx
+      .update(reservedSeats)
+      .set({ expiresAt: null })
+      .where(
+        and(
+          eq(reservedSeats.hallId, showTime.hallId),
+          eq(reservedSeats.startTime, showTime.startTime),
+          inArray(reservedSeats.seatId, seats)
+        )
+      );
+
+    // delete pending reservation
+    await tx
+      .delete(reservations)
+      .where(
+        and(
+          eq(reservations.id, reservationId),
+          eq(reservations.status, "pending")
+        )
+      );
+  });
+}

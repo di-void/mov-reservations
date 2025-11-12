@@ -7,7 +7,10 @@ import {
   updateReservation,
 } from "./data";
 import { startCheckoutSession } from "../payments/handlers/checkout";
-import { atomicallyCreateReservation } from "../../lib/reservations";
+import {
+  atomicallyCreateReservation,
+  rollbackReservation,
+} from "../../lib/reservations";
 import logger from "../../lib/logger";
 import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
@@ -100,11 +103,19 @@ export async function createReservation(
         operation: "createReservation:startCheckoutSession",
         error,
       });
-      // TODO: in case checkout fails, rollback reservation
-      // release seat holds and delete pending reservation
+
+      await rollbackReservation({
+        reservationId: res.reservation.id,
+        seats: res.reservation.seats.map((s) => s.seatId),
+        showTime: {
+          startTime: res.reservation.startTime,
+          hallId: res.reservation.hallId,
+        },
+      });
+
       return reply
         .status(500)
-        .send({ message: "Failed to create reservation" });
+        .send({ message: "Failed to start checkout session" });
     }
 
     return reply.status(201).send({
@@ -112,7 +123,6 @@ export async function createReservation(
       checkoutSession, // client will handle redirect
     });
   } catch (error) {
-    // console.error("Error creating rservation:", { error });
     logger.error("reservations", "Error creating reservation", {
       operation: "createReservation",
       error,
