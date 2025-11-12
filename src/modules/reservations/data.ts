@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, getTableColumns } from "drizzle-orm";
+import { and, eq, inArray, or, getTableColumns, isNull, lt } from "drizzle-orm";
 import { db } from "../../db";
 import {
   NewReservedSeat,
@@ -44,12 +44,49 @@ export async function insertReservedSeats(seats: NewReservedSeat[]) {
 }
 
 // showtime = hallId + startTime
+export async function checkSeatsAvailabilityByShowTime(
+  showTime: { startTime: Date; hallId: number },
+  filter: { seats: number[] }
+) {
+  const { hallId, startTime } = showTime;
+  const now = new Date(Date.now());
+
+  return db
+    .select({
+      ...getTableColumns(reservedSeats),
+      priceId: seats.priceId,
+      price: pricingRules.price,
+    })
+    .from(reservedSeats)
+    .innerJoin(
+      seats,
+      and(
+        eq(reservedSeats.seatId, seats.id),
+        eq(reservedSeats.hallId, seats.hallId)
+      )
+    )
+    .innerJoin(pricingRules, eq(seats.priceId, pricingRules.id))
+    .where(
+      and(
+        eq(reservedSeats.hallId, hallId),
+        eq(reservedSeats.startTime, startTime),
+        or(isNull(reservedSeats.expiresAt), lt(reservedSeats.expiresAt, now)),
+        filter.seats.length === 0
+          ? undefined
+          : inArray(reservedSeats.seatId, filter.seats)
+      )
+    );
+}
+
+// showtime = hallId + startTime
 export async function findReservedSeatsByShowTime(
   showTime: { startTime: Date; hallId: number },
   filter?: { seats: number[] }
 ) {
   const { hallId, startTime } = showTime;
   let filterSeats = filter ? filter.seats : [];
+  const now = new Date(Date.now());
+
   return db
     .select({
       ...getTableColumns(reservedSeats),

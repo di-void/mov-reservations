@@ -13,3 +13,6 @@ export const db =
     logger: true,
     casing: "snake_case",
   }));
+
+const tx = db.transaction(async (t) => t);
+export type DBTransaction = Awaited<typeof tx>;

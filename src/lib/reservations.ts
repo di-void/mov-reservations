@@ -1,192 +1,138 @@
-import { and, eq, inArray, getTableColumns } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import {
-  LogData,
-  pricingRules,
-  reservedSeats,
-  retryLog,
-  seats,
-  type NewReservedSeat,
-} from "../db/schema";
-import { findReservedSeatsByShowTime } from "../modules/reservations/data";
+import { reservations, reservedSeats, SeatMeta } from "../db/schema";
+import { checkSeatsAvailabilityByShowTime } from "../modules/reservations/data";
+import { getTotalAmountFromSeats } from "../utils";
 
-export async function checkAndMaybeReserve(data: {
+async function tryInitReservedSeats(data: {
+  seats: number[];
+  showTime: { hallId: number; startTime: Date };
+}) {
+  const values = data.seats.map((sId) => ({
+    seatId: sId,
+    expiresAt: null,
+    hallId: data.showTime.hallId,
+    startTime: data.showTime.startTime,
+  }));
+
+  // check if requested seats have already been initialized
+  // early return if they are already initialized
+  // if not, initialize the seats with null expiry
+  await db
+    .insert(reservedSeats)
+    .values(values)
+    .onConflictDoNothing({
+      target: [
+        reservedSeats.hallId,
+        reservedSeats.seatId,
+        reservedSeats.startTime,
+      ],
+    });
+}
+
+async function createReservation(data: {
+  seats: SeatMeta[];
+  totalAmount: number;
+  movieId: number;
+  userId: number;
+  showTime: { hallId: number; startTime: Date; endTime: Date };
+  holdExpiry: Date;
+}) {
+  const { seats, showTime, holdExpiry, userId, movieId, totalAmount } = data;
+  return await db.transaction(
+    async (tx) => {
+      // reserve seats and create reservation
+      await tx
+        .update(reservedSeats)
+        .set({ expiresAt: holdExpiry })
+        .where(
+          and(
+            eq(reservedSeats.hallId, showTime.hallId),
+            eq(reservedSeats.startTime, showTime.startTime),
+            inArray(
+              reservedSeats.seatId,
+              seats.map((s) => s.seatId)
+            )
+          )
+        );
+
+      // then return the created reservation
+      return await tx
+        .insert(reservations)
+        .values({
+          status: "pending",
+          seats,
+          startTime: showTime.startTime,
+          endTime: showTime.endTime,
+          userId,
+          totalAmount,
+          hallId: showTime.hallId,
+          movieId,
+        })
+        .returning()
+        .then((r) => r.at(0));
+    },
+    { behavior: "immediate" }
+  );
+}
+
+export async function atomicallyCreateReservation(data: {
   startTime: Date;
   endTime: Date;
   hallId: number;
   seats: number[];
   userId: number;
-  sessionKey: string;
   movieId: number;
 }) {
-  const reserved = await findReservedSeatsByShowTime(
-    {
-      hallId: data.hallId,
-      startTime: data.startTime,
-    },
-    { seats: data.seats } // filter
+  // lazily initialize requested seats
+  await tryInitReservedSeats({
+    seats: data.seats,
+    showTime: { startTime: data.startTime, hallId: data.hallId },
+  });
+
+  const available = await checkSeatsAvailabilityByShowTime(
+    { hallId: data.hallId, startTime: data.startTime },
+    { seats: data.seats }
   );
+  const availableSeatIds = available.map((a) => a.seatId);
+
+  if (availableSeatIds.length === 0) {
+    // if available rows are 0, then all requested seats
+    // are definitely not available; return early with error info
+    return { success: false, available: availableSeatIds };
+  }
+
+  if (availableSeatIds.length < data.seats.length) {
+    // if available rows are less than requested seats length
+    // then return early with error info as we can't fulfill the request atomically
+    return { success: false, available: availableSeatIds };
+  }
+
+  // if available rows length is equal to requested seats length
+  // proceed to hold the seats for a short time and create the pending reservation
   const HOLD_MS = 5 * 60 * 1000; // 5 minutes hold for in-flight reservation
   const now = Date.now();
   const holdExpiry = new Date(now + HOLD_MS);
+  const seats = available.map((a) => ({
+    seatId: a.seatId,
+    price: {
+      id: a.priceId,
+      price: a.price,
+    },
+  }));
 
-  // No reserved rows at all -> initialize and hold them
-  if (reserved.length === 0) {
-    const toInsert = data.seats.map((seatId) => ({
+  const reservation = await createReservation({
+    seats,
+    holdExpiry,
+    showTime: {
       hallId: data.hallId,
-      seatId,
       startTime: data.startTime,
-      expiresAt: holdExpiry,
-    }));
-
-    const reserved = await atomicallyInsertAndRetrieveReservedSeats({
-      showTime: { hallId: data.hallId, startTime: data.startTime },
-      input: toInsert,
-    });
-
-    return { success: true, reserved };
-  }
-
-  // If some reserved rows exist, ensure all requested seats have a reserved_seats row (create missing with expiresAt=null)
-  const reservedMap = new Map(reserved.map((r) => [r.seatId, r]));
-  const missingSeatIds = data.seats.filter((s) => !reservedMap.has(s));
-
-  if (missingSeatIds.length > 0) {
-    const toInit = missingSeatIds.map((seatId) => ({
-      hallId: data.hallId,
-      seatId,
-      startTime: data.startTime,
-      expiresAt: null,
-    }));
-    // initialize missing reserved seat rows with no expiry
-    await db
-      .insert(reservedSeats)
-      .values([...toInit])
-      .onConflictDoNothing({
-        target: [
-          reservedSeats.hallId,
-          reservedSeats.seatId,
-          reservedSeats.startTime,
-        ],
-      });
-  }
-
-  // Re-read current rows for the requested seats (some may have been inserted above)
-  const allReserved = await findReservedSeatsByShowTime(
-    { hallId: data.hallId, startTime: data.startTime },
-    { seats: data.seats } // filter
-  );
-
-  const availableSeatIds = allReserved
-    .filter((r) => {
-      if (!r.expiresAt) return true; // null/undefined expiry -> available
-      const expiresAt = new Date(r.expiresAt).getTime();
-      return expiresAt <= now; // expired -> available
-    })
-    .map((r) => r.seatId);
-
-  // if all requested seats are available, set expiry to hold for this request
-  if (availableSeatIds.length === data.seats.length) {
-    const { hallId, movieId, sessionKey, userId, startTime } = data;
-    await atomicallyUpdateAndLogReservedSeats({
-      availableSeatIds,
-      hallId,
-      holdExpiry,
-      movieId,
-      startTime,
-      userId,
-      sessionKey,
-    });
-
-    const updated = await findReservedSeatsByShowTime(
-      { hallId: data.hallId, startTime: data.startTime },
-      { seats: data.seats }
-    );
-
-    return { success: true, reserved: updated };
-  }
-
-  // not all seats are available; return which seats are available for error reporting
-  return { success: false, available: availableSeatIds };
-}
-
-async function atomicallyUpdateAndLogReservedSeats(data: {
-  holdExpiry: Date;
-  hallId: number;
-  availableSeatIds: number[];
-  startTime: Date;
-  movieId: number;
-  userId: number;
-  sessionKey: string;
-}) {
-  return db.transaction(async (tx) => {
-    await tx
-      .update(reservedSeats)
-      .set({ expiresAt: data.holdExpiry })
-      .where(
-        and(
-          eq(reservedSeats.hallId, data.hallId),
-          eq(reservedSeats.startTime, data.startTime),
-          inArray(reservedSeats.seatId, data.availableSeatIds)
-        )
-      );
-
-    const log: LogData = {
-      hallId: data.hallId,
-      seatIds: data.availableSeatIds,
-      startTime: data.startTime,
-      status: "pending",
-      movieId: data.movieId,
-      userId: data.userId,
-    };
-
-    await tx.insert(retryLog).values({
-      data: log,
-      userId: data.userId,
-      sessionKey: data.sessionKey,
-    });
+      endTime: data.endTime,
+    },
+    movieId: data.movieId,
+    totalAmount: getTotalAmountFromSeats(seats),
+    userId: data.userId,
   });
-}
 
-async function atomicallyInsertAndRetrieveReservedSeats(data: {
-  showTime: { hallId: number; startTime: Date };
-  input: NewReservedSeat[];
-}) {
-  const {
-    input,
-    showTime: { hallId, startTime },
-  } = data;
-  const filterSeats = input.map((i) => i.seatId);
-
-  return db.transaction(async (tx) => {
-    await tx
-      .insert(reservedSeats)
-      .values([...input])
-      .returning();
-
-    const reserved = await tx
-      .select({
-        ...getTableColumns(reservedSeats),
-        priceId: seats.priceId,
-        price: pricingRules.price,
-      })
-      .from(reservedSeats)
-      .innerJoin(
-        seats,
-        and(
-          eq(reservedSeats.seatId, seats.id),
-          eq(reservedSeats.hallId, seats.hallId)
-        )
-      )
-      .innerJoin(pricingRules, eq(seats.priceId, pricingRules.id))
-      .where(
-        and(
-          eq(reservedSeats.hallId, hallId),
-          eq(reservedSeats.startTime, startTime),
-          inArray(reservedSeats.seatId, filterSeats)
-        )
-      );
-
-    return reserved;
-  });
+  return { success: true, reservation };
 }

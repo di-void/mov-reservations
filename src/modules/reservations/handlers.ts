@@ -4,16 +4,15 @@ import {
   findReservationByIdAndUserId,
   findReservationById,
   findReservationsByUserId,
-  insertReservation,
   updateReservation,
 } from "./data";
 import { startCheckoutSession } from "../payments/handlers/checkout";
-import { checkAndMaybeReserve } from "../../lib/reservations";
+import { atomicallyCreateReservation } from "../../lib/reservations";
 import logger from "../../lib/logger";
 import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
 import { mapReservation } from "./mappers";
-import { getTotalAmountFromSeats, tryCatch } from "../../utils";
+import { tryCatch } from "../../utils";
 
 export async function createReservation(
   request: FastifyRequest<{
@@ -33,7 +32,7 @@ export async function createReservation(
       });
     }
 
-    const { seats: requestedSeats, movieId, time, sessionKey } = result.data;
+    const { seats: requestedSeats, movieId, time } = result.data;
     const userId = request.user!.id;
 
     // validate showtime
@@ -55,44 +54,25 @@ export async function createReservation(
     }
 
     const { startTime, endTime } = showTime;
-    const reserved = await checkAndMaybeReserve({
-      startTime,
-      endTime,
+
+    const res = await atomicallyCreateReservation({
       hallId,
       seats: requestedSeats,
       movieId,
-      sessionKey,
       userId,
+      endTime,
+      startTime,
     });
-    if (!reserved.success) {
+
+    if (!res.success) {
       return reply.status(422).send({
         message: "Could not reserve requested seats",
         requested: requestedSeats,
-        available: reserved.available,
+        available: res.available,
       });
     }
 
-    const seats = reserved.reserved?.map((r) => ({
-      seatId: r.seatId,
-      price: {
-        id: r.priceId,
-        price: r.price,
-      },
-    }))!;
-
-    // TODO: atomically set seat holds and create pending reservation
-    // so that we can rollback in case of failure
-    const reservation = await insertReservation({
-      seats,
-      totalAmount: getTotalAmountFromSeats(seats),
-      hallId,
-      movieId,
-      startTime,
-      endTime,
-      userId,
-    });
-
-    if (!reservation) {
+    if (!res.reservation) {
       // log: we should not normally enter this branch
       const errMsg =
         "Failed to insert reservation after seats were reserved. Insert returned falsy.";
@@ -103,9 +83,8 @@ export async function createReservation(
           hallId,
           time,
           userId,
-          sessionKey,
           requestedSeats,
-          reservedCount: reserved.reserved?.length ?? 0,
+          res,
         },
       });
 
@@ -114,7 +93,7 @@ export async function createReservation(
 
     // create checkout session
     const { error, data: checkoutSession } = await tryCatch(
-      startCheckoutSession(reservation)
+      startCheckoutSession(res.reservation)
     );
     if (error) {
       logger.error("reservations", "Failed to start checkout session", {
