@@ -129,9 +129,9 @@ export async function insertReservation(data: {
     .then((r) => r.at(0));
 }
 
-export async function updateReservation(
+export async function updateReservationById(
   id: number,
-  data: { status: Reservation["status"] }
+  data: Partial<Reservation>
 ) {
   return db
     .update(reservations)
@@ -200,6 +200,32 @@ export async function findReservationByIdAndUserId(data: {
     .leftJoin(movies, eq(movies.id, reservations.movieId))
     .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(and(eq(reservations.id, id), eq(reservations.userId, userId)))
+    .limit(1)
+    .then((r) => r.at(0));
+}
+
+export async function findConfirmedReservationByIdAndUserId(data: {
+  userId: number;
+  id: number;
+}) {
+  const { userId, id } = data;
+  return db
+    .select({
+      reservation: reservations,
+      movie: {
+        title: movies.title,
+        duration: movies.duration,
+      },
+      hall: {
+        name: halls.name,
+      },
+    })
+    .from(reservations)
+    .leftJoin(movies, eq(movies.id, reservations.movieId))
+    .leftJoin(halls, eq(reservations.hallId, halls.id))
+    .where(
+      and(eq(reservations.status, "confirmed"), eq(reservations.userId, userId))
+    )
     .limit(1)
     .then((r) => r.at(0));
 }

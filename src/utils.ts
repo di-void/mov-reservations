@@ -69,7 +69,7 @@ type Failure<E> = {
 type Result<T, E = Error> = Success<T> | Failure<E>;
 
 export async function tryCatch<T, E = Error>(
-  operation: Promise<T>
+  operation: Promise<T>,
 ): Promise<Result<T, E>> {
   try {
     const result = await operation;

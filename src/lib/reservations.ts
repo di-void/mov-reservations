@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { reservations, reservedSeats, SeatMeta } from "../db/schema";
+import { reservations, reservedSeats, type SeatMeta } from "../db/schema";
 import { checkSeatsAvailabilityByShowTime } from "../modules/reservations/data";
 import { getTotalAmountFromSeats } from "../utils";
 
@@ -48,9 +48,9 @@ async function createReservation(data: {
             eq(reservedSeats.startTime, showTime.startTime),
             inArray(
               reservedSeats.seatId,
-              seats.map((s) => s.seatId)
-            )
-          )
+              seats.map((s) => s.seatId),
+            ),
+          ),
         );
 
       // then return the created reservation
@@ -69,7 +69,7 @@ async function createReservation(data: {
         .returning()
         .then((r) => r.at(0));
     },
-    { behavior: "immediate" }
+    { behavior: "immediate" },
   );
 }
 
@@ -89,7 +89,7 @@ export async function atomicallyCreateReservation(data: {
 
   const available = await checkSeatsAvailabilityByShowTime(
     { hallId: data.hallId, startTime: data.startTime },
-    { seats: data.seats }
+    { seats: data.seats },
   );
   const availableSeatIds = available.map((a) => a.seatId);
 
@@ -148,8 +148,8 @@ export async function rollbackReservation(data: {
         and(
           eq(reservedSeats.hallId, showTime.hallId),
           eq(reservedSeats.startTime, showTime.startTime),
-          inArray(reservedSeats.seatId, seats)
-        )
+          inArray(reservedSeats.seatId, seats),
+        ),
       );
 
     // delete pending reservation
@@ -158,8 +158,8 @@ export async function rollbackReservation(data: {
       .where(
         and(
           eq(reservations.id, reservationId),
-          eq(reservations.status, "pending")
-        )
+          eq(reservations.status, "pending"),
+        ),
       );
   });
 }

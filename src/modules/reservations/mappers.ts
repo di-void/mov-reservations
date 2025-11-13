@@ -6,7 +6,8 @@ export function mapReservation(data: {
   hall: Pick<Hall, "name"> | null;
 }) {
   const { reservation, movie, hall } = data;
-  const { updatedAt, hallId, movieId, userId, seats, ...restRes } = reservation;
+  const { updatedAt, hallId, movieId, userId, seats, checkoutId, ...restRes } =
+    reservation;
 
   return {
     ...restRes,

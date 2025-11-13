@@ -167,10 +167,11 @@ export const reservations = sqliteTable(
       .references(() => users.id),
     hallId: integer({ mode: "number" }).notNull(),
     movieId: integer({ mode: "number" }).notNull(),
+    checkoutId: text(),
     startTime: integer({ mode: "timestamp" }).notNull(),
     endTime: integer({ mode: "timestamp" }).notNull(),
     status: text({
-      enum: ["pending", "confirmed", "active", "cancelled"],
+      enum: ["pending", "confirmed", "cancelled"],
     }).notNull(),
     totalAmount: integer({ mode: "number" }).notNull(),
     createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -234,7 +235,6 @@ export const tickets = sqliteTable("tickets", {
   refundReason: text(),
   totalAmount: integer({ mode: "number" }).notNull(), // in cents
   metadata: text({ mode: "json" }).$type<TicketMeta>(),
-  transactionId: text(), // from payment provider
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
   updatedAt: integer({ mode: "timestamp" })
     .notNull()

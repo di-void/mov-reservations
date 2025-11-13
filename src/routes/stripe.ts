@@ -3,7 +3,7 @@ import { stripe } from "../lib/stripe";
 import { env } from "../../env";
 import { parseCheckoutMetaData } from "../utils";
 import logger from "../lib/logger";
-import { handleCompletedCheckoutSession } from "../modules/tickets/handlers/stripe";
+import { handleCompletedCheckoutSession } from "../lib/payments";
 
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.removeContentTypeParser(["application/json"]); // disable body parsing
@@ -48,6 +48,7 @@ export function routes(fastify: FastifyInstance, opts: any) {
 
             const reservation = metadata.reservation;
             handleCompletedCheckoutSession({
+              moduleName: "stripe/webhooks",
               checkoutId: checkoutEventObject.id,
               reservation,
               eventType: event.type,

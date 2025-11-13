@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth";
 import {
+  cancelReservation,
   confirmReservation,
   createReservation,
   getAllUserReservations,
@@ -22,7 +23,8 @@ export function routes(fastify: FastifyInstance, opts: any) {
 
   fastify.get("/", getAllUserReservations);
   fastify.get("/:id", IdParamJsonSchema, getReservation);
-  fastify.patch("/:id/confirm", IdParamJsonSchema, confirmReservation);
+  fastify.patch("/:id/confirm", confirmReservation);
+  fastify.patch("/:id/cancel", IdParamJsonSchema, cancelReservation);
 
   fastify.post(
     "/:hallId",
