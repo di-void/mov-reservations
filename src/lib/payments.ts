@@ -161,5 +161,9 @@ export async function atomicallyConfirmReservation(data: {
 }
 
 export async function getCheckoutSession(checkoutId: string) {
-  return await stripe.checkout.sessions.retrieve(checkoutId);
+  return stripe.checkout.sessions.retrieve(checkoutId);
+}
+
+export async function expireCheckoutSession(checkoutId: string) {
+  return stripe.checkout.sessions.expire(checkoutId);
 }

@@ -15,4 +15,5 @@ export const db =
   }));
 
 const tx = db.transaction(async (t) => t);
+export type DB = typeof db;
 export type DBTransaction = Awaited<typeof tx>;

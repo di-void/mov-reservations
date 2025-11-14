@@ -128,11 +128,12 @@ export const seats = sqliteTable(
 );
 
 export const reservedSeats = sqliteTable(
-  "reserved_seats",
+  "new_reserved_seats",
   {
     hallId: integer().notNull(),
     seatId: integer().notNull(),
     startTime: integer({ mode: "timestamp" }),
+    reservedAt: integer({ mode: "timestamp" }),
     expiresAt: integer({ mode: "timestamp" }),
   },
   (table) => [
@@ -201,25 +202,11 @@ export type LogData = {
   movieId: number;
 };
 
-export const retryLog = sqliteTable("retry_log", {
-  id: integer({ mode: "number" }).primaryKey(),
-  sessionKey: text().notNull(),
-  userId: integer()
-    .notNull()
-    .references(() => users.id),
-  data: text({ mode: "json" }).$type<LogData>().notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
-    .notNull()
-    .default(new Date())
-    .$onUpdateFn(() => new Date()),
-});
-
 export type TicketMeta = {
   refund?: { initiator: "system" | "user"; [x: string]: any };
   [x: string]: any;
 };
-export const tickets = sqliteTable("tickets", {
+export const tickets = sqliteTable("new_tickets", {
   id: text()
     .$defaultFn(() => generateTicketId())
     .primaryKey(),
@@ -229,10 +216,6 @@ export const tickets = sqliteTable("tickets", {
   paymentStatus: text({
     enum: ["pending", "processing", "failed", "paid", "refunded"],
   }).notNull(),
-  // paymentMethod: text({
-  //   enum: ["credit_card", "debit_card", "bank_transfer"],
-  // }).notNull(),
-  refundReason: text(),
   totalAmount: integer({ mode: "number" }).notNull(), // in cents
   metadata: text({ mode: "json" }).$type<TicketMeta>(),
   createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
@@ -243,3 +226,23 @@ export const tickets = sqliteTable("tickets", {
 });
 export type NewTicket = typeof tickets.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
+
+export const refundRequests = sqliteTable("refund_requests", {
+  id: integer().primaryKey(),
+  userId: integer()
+    .references(() => users.id)
+    .notNull(),
+  reason: text(),
+  initiator: text({ enum: ["system", "user"] })
+    .default("system")
+    .notNull(),
+  status: text({ enum: ["pending", "fulfilled", "declined"] })
+    .notNull()
+    .default("pending"),
+  reservationId: integer()
+    .references(() => reservations.id)
+    .notNull(),
+});
+
+export type NewRefundRequest = typeof refundRequests.$inferInsert;
+export type RefundRequest = typeof refundRequests.$inferSelect;

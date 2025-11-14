@@ -1,11 +1,11 @@
 import { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth";
 import {
-  cancelReservation,
-  confirmReservation,
-  createReservation,
-  getAllUserReservations,
-  getReservation,
+  cancelReservationHandler,
+  confirmReservationHandler,
+  createReservationHandler,
+  getAllUserReservationsHandler,
+  getReservationHandler,
 } from "../modules/reservations/handlers";
 
 const IdParamJsonSchema = {
@@ -21,10 +21,10 @@ const IdParamJsonSchema = {
 export function routes(fastify: FastifyInstance, opts: any) {
   fastify.addHook("preHandler", authenticate);
 
-  fastify.get("/", getAllUserReservations);
-  fastify.get("/:id", IdParamJsonSchema, getReservation);
-  fastify.patch("/:id/confirm", confirmReservation);
-  fastify.patch("/:id/cancel", IdParamJsonSchema, cancelReservation);
+  fastify.get("/", getAllUserReservationsHandler);
+  fastify.get("/:id", IdParamJsonSchema, getReservationHandler);
+  fastify.patch("/:id/confirm", confirmReservationHandler);
+  fastify.patch("/:id/cancel", IdParamJsonSchema, cancelReservationHandler);
 
   fastify.post(
     "/:hallId",
@@ -39,6 +39,6 @@ export function routes(fastify: FastifyInstance, opts: any) {
         },
       },
     },
-    createReservation
+    createReservationHandler
   );
 }

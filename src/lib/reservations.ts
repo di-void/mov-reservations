@@ -1,7 +1,16 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../db";
-import { reservations, reservedSeats, type SeatMeta } from "../db/schema";
-import { checkSeatsAvailabilityByShowTime } from "../modules/reservations/data";
+import {
+  type Reservation,
+  reservations,
+  reservedSeats,
+  type SeatMeta,
+} from "../db/schema";
+import {
+  checkSeatsAvailabilityByShowTime,
+  releaseReservedSeatHoldsByReservationTime,
+  releaseReservedSeatHoldsByShowTime,
+} from "../modules/reservations/data";
 import { getTotalAmountFromSeats } from "../utils";
 
 async function tryInitReservedSeats(data: {
@@ -33,30 +42,40 @@ async function createReservation(data: {
   movieId: number;
   userId: number;
   showTime: { hallId: number; startTime: Date; endTime: Date };
+  reservedAt: Date;
   holdExpiry: Date;
 }) {
-  const { seats, showTime, holdExpiry, userId, movieId, totalAmount } = data;
+  const {
+    seats,
+    showTime,
+    holdExpiry,
+    userId,
+    movieId,
+    totalAmount,
+    reservedAt,
+  } = data;
   return await db.transaction(
     async (tx) => {
       // reserve seats and create reservation
       await tx
         .update(reservedSeats)
-        .set({ expiresAt: holdExpiry })
+        .set({ expiresAt: holdExpiry, reservedAt })
         .where(
           and(
             eq(reservedSeats.hallId, showTime.hallId),
             eq(reservedSeats.startTime, showTime.startTime),
             inArray(
               reservedSeats.seatId,
-              seats.map((s) => s.seatId),
-            ),
-          ),
+              seats.map((s) => s.seatId)
+            )
+          )
         );
 
       // then return the created reservation
       return await tx
         .insert(reservations)
         .values({
+          createdAt: reservedAt,
           status: "pending",
           seats,
           startTime: showTime.startTime,
@@ -69,7 +88,7 @@ async function createReservation(data: {
         .returning()
         .then((r) => r.at(0));
     },
-    { behavior: "immediate" },
+    { behavior: "immediate" }
   );
 }
 
@@ -89,7 +108,7 @@ export async function atomicallyCreateReservation(data: {
 
   const available = await checkSeatsAvailabilityByShowTime(
     { hallId: data.hallId, startTime: data.startTime },
-    { seats: data.seats },
+    { seats: data.seats }
   );
   const availableSeatIds = available.map((a) => a.seatId);
 
@@ -106,8 +125,8 @@ export async function atomicallyCreateReservation(data: {
   // if available rows length is equal to requested seats length
   // proceed to hold the seats for a short time and create the pending reservation
   const HOLD_MS = 5 * 60 * 1000; // 5 minutes hold for in-flight reservation
-  const now = Date.now();
-  const holdExpiry = new Date(now + HOLD_MS);
+  const now = new Date();
+  const holdExpiry = new Date(now.getTime() + HOLD_MS);
   const seats = available.map((a) => ({
     seatId: a.seatId,
     price: {
@@ -118,6 +137,7 @@ export async function atomicallyCreateReservation(data: {
 
   const reservation = await createReservation({
     seats,
+    reservedAt: now,
     holdExpiry,
     showTime: {
       hallId: data.hallId,
@@ -141,16 +161,7 @@ export async function rollbackReservation(data: {
 
   await db.transaction(async (tx) => {
     // release seat holds
-    await tx
-      .update(reservedSeats)
-      .set({ expiresAt: null })
-      .where(
-        and(
-          eq(reservedSeats.hallId, showTime.hallId),
-          eq(reservedSeats.startTime, showTime.startTime),
-          inArray(reservedSeats.seatId, seats),
-        ),
-      );
+    await releaseReservedSeatHoldsByShowTime(tx, seats, showTime);
 
     // delete pending reservation
     await tx
@@ -158,8 +169,23 @@ export async function rollbackReservation(data: {
       .where(
         and(
           eq(reservations.id, reservationId),
-          eq(reservations.status, "pending"),
-        ),
+          eq(reservations.status, "pending")
+        )
       );
+  });
+}
+
+export async function cancelReservation(reservation: Reservation) {
+  await db.transaction(async function (tx) {
+    await releaseReservedSeatHoldsByReservationTime(
+      tx,
+      reservation.seats.map((s) => s.seatId),
+      reservation.createdAt
+    );
+
+    await tx
+      .update(reservations)
+      .set({ status: "cancelled", cancelledAt: new Date() })
+      .where(eq(reservations.id, reservation.id));
   });
 }

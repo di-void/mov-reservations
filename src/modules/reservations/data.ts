@@ -1,5 +1,5 @@
 import { and, eq, inArray, or, getTableColumns, isNull, lt } from "drizzle-orm";
-import { db } from "../../db";
+import { type DB, db, type DBTransaction } from "../../db";
 import {
   NewReservedSeat,
   pricingRules,
@@ -85,7 +85,6 @@ export async function findReservedSeatsByShowTime(
 ) {
   const { hallId, startTime } = showTime;
   let filterSeats = filter ? filter.seats : [];
-  const now = new Date(Date.now());
 
   return db
     .select({
@@ -224,8 +223,45 @@ export async function findConfirmedReservationByIdAndUserId(data: {
     .leftJoin(movies, eq(movies.id, reservations.movieId))
     .leftJoin(halls, eq(reservations.hallId, halls.id))
     .where(
-      and(eq(reservations.status, "confirmed"), eq(reservations.userId, userId))
+      and(
+        eq(reservations.status, "confirmed"),
+        eq(reservations.userId, userId),
+        eq(reservations.id, id)
+      )
     )
     .limit(1)
     .then((r) => r.at(0));
+}
+
+export async function releaseReservedSeatHoldsByReservationTime(
+  dbTx: DBTransaction | DB,
+  seats: number[],
+  reservedAt: Date
+) {
+  return dbTx
+    .update(reservedSeats)
+    .set({ expiresAt: null, reservedAt: null })
+    .where(
+      and(
+        eq(reservedSeats.reservedAt, reservedAt),
+        inArray(reservedSeats.seatId, seats)
+      )
+    );
+}
+
+export async function releaseReservedSeatHoldsByShowTime(
+  dbTx: DBTransaction | DB,
+  seats: number[],
+  showTime: { hallId: number; startTime: Date }
+) {
+  return dbTx
+    .update(reservedSeats)
+    .set({ expiresAt: null })
+    .where(
+      and(
+        eq(reservedSeats.hallId, showTime.hallId),
+        eq(reservedSeats.startTime, showTime.startTime),
+        inArray(reservedSeats.seatId, seats)
+      )
+    );
 }

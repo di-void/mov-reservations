@@ -8,11 +8,13 @@ import {
 } from "./data";
 import {
   atomicallyCreateReservation,
+  cancelReservation,
   rollbackReservation,
 } from "../../lib/reservations";
 import logger from "../../lib/logger";
 import {
   atomicallyConfirmReservation,
+  expireCheckoutSession,
   getCheckoutSession,
   startCheckoutSession,
 } from "../../lib/payments";
@@ -20,8 +22,9 @@ import { validateRequestedSeats, validateShowTime } from "./validators";
 import * as z from "zod";
 import { mapReservation } from "./mappers";
 import { tryCatch } from "../../utils";
+import { insertNewRefundRequest } from "../refunds/data";
 
-export async function createReservation(
+export async function createReservationHandler(
   request: FastifyRequest<{
     Body: CreateReservationBody;
     Params: { hallId: number };
@@ -135,7 +138,7 @@ export async function createReservation(
   }
 }
 
-export async function getAllUserReservations(
+export async function getAllUserReservationsHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
@@ -156,7 +159,7 @@ export async function getAllUserReservations(
   }
 }
 
-export async function getReservation(
+export async function getReservationHandler(
   request: FastifyRequest<{ Params: { id: number } }>,
   reply: FastifyReply
 ) {
@@ -190,7 +193,7 @@ export async function getReservation(
   }
 }
 
-export async function confirmReservation(
+export async function confirmReservationHandler(
   request: FastifyRequest<{
     Params: { id: number };
   }>,
@@ -212,68 +215,74 @@ export async function confirmReservation(
 
     const { reservation, movie, hall } = r;
 
-    if (reservation.status === "confirmed") {
-      return reply.status(200).send({
-        message: "Reservation is already confirmed",
-        reservation: mapReservation({ reservation, movie, hall }),
-      });
-    }
-
-    if (reservation.status === "cancelled") {
-      return reply.status(400).send({
-        message: "Cannot confirm a cancelled reservation",
-        errors: { id: reservationId, status: reservation.status },
-      });
-    }
-
-    // update to confirmed if still pending
-    if (reservation.status === "pending") {
-      const checkoutId = reservation.checkoutId ?? "";
-      const { data: checkoutSession, error } = await tryCatch(
-        getCheckoutSession(checkoutId)
-      );
-
-      if (error) {
-        logger.error("reservations", "Failed getting checkout session", {
-          operation: "getCheckoutSession",
-          context: { checkoutId, reservationId: reservation.id },
-          error,
-        });
-
-        return reply.status(500).send({ message: "An error occurred" });
-      }
-
-      if (
-        checkoutSession.status === "complete" &&
-        checkoutSession.payment_status === "paid"
-      ) {
-        const result = await atomicallyConfirmReservation({
-          reservation,
-          movie,
-          hall,
-        });
-
+    switch (reservation.status) {
+      case "confirmed":
         return reply.status(200).send({
-          message: "Reservation confirmed successfully",
-          reservation: mapReservation({
-            reservation: result.reservation,
-            movie: result.movie,
-            hall: result.hall,
-          }),
+          message: "Reservation is already confirmed",
+          reservation: mapReservation({ reservation, movie, hall }),
         });
-      }
+      case "cancelled":
+        return reply.status(400).send({
+          message: "Cannot confirm a cancelled reservation",
+          errors: { id: reservationId, status: reservation.status },
+        });
+      case "pending":
+        const checkoutId = reservation.checkoutId ?? "";
+        const { data: checkoutSession, error } = await tryCatch(
+          getCheckoutSession(checkoutId)
+        );
 
-      logger.debug("reservations", "Reservation can't be confirmed", {
-        operation: "confirmReservation",
-        context: {
-          checkoutSession,
-          reservationId,
-        },
-      });
+        if (error) {
+          logger.error("reservations", "Failed getting checkout session", {
+            operation: "getCheckoutSession",
+            context: { checkoutId, reservationId: reservation.id },
+            error,
+          });
 
-      return reply.status(422).send({
-        message: "Couldn't confirm reservation",
-      });
+          return reply.status(500).send({ message: "An error occurred" });
+        }
+
+        if (
+          checkoutSession.status === "complete" &&
+          checkoutSession.payment_status === "paid"
+        ) {
+          const result = await atomicallyConfirmReservation({
+            reservation,
+            movie,
+            hall,
+          });
+
+          return reply.status(200).send({
+            message: "Reservation confirmed successfully",
+            reservation: mapReservation({
+              reservation: result.reservation,
+              movie: result.movie,
+              hall: result.hall,
+            }),
+          });
+        }
+
+        logger.debug("reservations", "Reservation can't be confirmed", {
+          operation: "confirmReservation",
+          context: {
+            checkoutSession,
+            reservationId,
+          },
+        });
+
+        return reply.status(422).send({
+          message: "Couldn't confirm reservation",
+        });
+      default:
+        logger.debug("reservations", "Invalid reservation status received", {
+          operation: "confirmReservation",
+          context: {
+            reservation,
+          },
+        });
+        return reply
+          .status(400)
+          .send({ message: "Invalid reservation status" });
     }
   } catch (error) {
     logger.error("reservations", "Error confirming reservation", {
@@ -285,7 +294,7 @@ export async function confirmReservation(
   }
 }
 
-export async function cancelReservation(
+export async function cancelReservationHandler(
   request: FastifyRequest<{ Params: { id: number } }>,
   reply: FastifyReply
 ) {
@@ -293,7 +302,7 @@ export async function cancelReservation(
   const userId = request.user?.id!;
 
   try {
-    const res = await findConfirmedReservationByIdAndUserId({
+    const res = await findReservationByIdAndUserId({
       id: reservationId,
       userId,
     });
@@ -307,18 +316,73 @@ export async function cancelReservation(
 
     const { reservation } = res;
 
-    // if status is pending, check the hold expiry time
-    // if the time has passed, just set the reservation status to "cancelled"
-    // if the time has not yet passed, reset the seat hold (setting it to the current time or null)
-    // and set the reservation status to "cancelled"
-    // return from the request with a 200
-    // if the status is confirmed, we first check if the startTime is within
-    // 1 hour away from the current time
-    // if it is, reject the cancel request with info
-    // if it is not within (i.e before that), reset the reserved seat holds
-    // then call the payment processor with metadata about the ticket
-    // start a refund and set the ticket's state to "processing"
-    // return with info
+    switch (reservation.status) {
+      case "cancelled":
+        return reply.status(400).send({
+          message: "Reservation is already cancelled",
+          errors: { id: reservationId, status: reservation.status },
+        });
+      case "pending":
+        await cancelReservation(reservation);
+
+        const { error } = await tryCatch(
+          expireCheckoutSession(reservation.checkoutId ?? "")
+        );
+
+        if (error) {
+          logger.error("reservations", "Failed to expire checkout session", {
+            operation: "cancelReservation",
+            error,
+            context: {
+              checkoutId: reservation.checkoutId,
+            },
+          });
+        }
+
+        return reply
+          .status(200)
+          .send({ message: "Reservation cancelled successfully" });
+      case "confirmed":
+        const now = Date.now();
+        const startTime = reservation.startTime;
+        const latest = startTime.getTime() - 60 * 60 * 1000; // 1 hour
+
+        if (now >= latest) {
+          return reply.status(400).send({
+            message: "Can't cancel this reservation",
+            errors: {
+              startTime,
+              msg: "Grace period has passed",
+            },
+          });
+        }
+
+        await cancelReservation(reservation);
+
+        const refundRequest = await insertNewRefundRequest({
+          reservationId: reservation.id,
+          userId,
+          reason: "Cancelled reservation",
+        });
+        return reply.status(200).send({
+          message: "Resevation cancelled succesfully",
+          refundRequest: {
+            message:
+              "A refund request has been created for you. Follow up here.",
+            id: refundRequest?.id,
+          },
+        });
+      default:
+        logger.debug("reservations", "Invalid reservation status received", {
+          operation: "cancelReservation",
+          context: {
+            reservation,
+          },
+        });
+        return reply
+          .status(400)
+          .send({ message: "Invalid reservation status" });
+    }
   } catch (error) {
     logger.error("reservations", "Error cancelling reservation", {
       operation: "cancelReservation",
