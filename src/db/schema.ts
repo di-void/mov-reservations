@@ -128,7 +128,7 @@ export const seats = sqliteTable(
 );
 
 export const reservedSeats = sqliteTable(
-  "new_reserved_seats",
+  "reserved_seats",
   {
     hallId: integer().notNull(),
     seatId: integer().notNull(),
@@ -206,7 +206,7 @@ export type TicketMeta = {
   refund?: { initiator: "system" | "user"; [x: string]: any };
   [x: string]: any;
 };
-export const tickets = sqliteTable("new_tickets", {
+export const tickets = sqliteTable("tickets", {
   id: text()
     .$defaultFn(() => generateTicketId())
     .primaryKey(),
