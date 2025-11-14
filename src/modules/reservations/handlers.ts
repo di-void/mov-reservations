@@ -1,19 +1,14 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { CreateReservationBody, createReservationSchema } from "./schema";
+import { findReservationByIdAndUserId, findReservationsByUserId } from "./data";
 import {
-  findConfirmedReservationByIdAndUserId,
-  findReservationByIdAndUserId,
-  findReservationsByUserId,
-  updateReservationById,
-} from "./data";
-import {
+  atomicallyConfirmReservation,
   atomicallyCreateReservation,
   cancelReservation,
   rollbackReservation,
 } from "../../lib/reservations";
 import logger from "../../lib/logger";
 import {
-  atomicallyConfirmReservation,
   expireCheckoutSession,
   getCheckoutSession,
   startCheckoutSession,
@@ -29,7 +24,7 @@ export async function createReservationHandler(
     Body: CreateReservationBody;
     Params: { hallId: number };
   }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   try {
     const hallId = request.params.hallId;
@@ -103,7 +98,7 @@ export async function createReservationHandler(
 
     // create checkout session
     const { error, data: checkoutSession } = await tryCatch(
-      startCheckoutSession(res.reservation)
+      startCheckoutSession(res.reservation),
     );
     if (error) {
       logger.error("reservations", "Failed to start checkout session", {
@@ -140,7 +135,7 @@ export async function createReservationHandler(
 
 export async function getAllUserReservationsHandler(
   request: FastifyRequest,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   try {
     const userId = request.user?.id!;
@@ -161,7 +156,7 @@ export async function getAllUserReservationsHandler(
 
 export async function getReservationHandler(
   request: FastifyRequest<{ Params: { id: number } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   try {
     const reservationId = request.params.id;
@@ -197,7 +192,7 @@ export async function confirmReservationHandler(
   request: FastifyRequest<{
     Params: { id: number };
   }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   const reservationId = request.params.id;
   const userId = request.user?.id!;
@@ -229,7 +224,7 @@ export async function confirmReservationHandler(
       case "pending":
         const checkoutId = reservation.checkoutId ?? "";
         const { data: checkoutSession, error } = await tryCatch(
-          getCheckoutSession(checkoutId)
+          getCheckoutSession(checkoutId),
         );
 
         if (error) {
@@ -296,7 +291,7 @@ export async function confirmReservationHandler(
 
 export async function cancelReservationHandler(
   request: FastifyRequest<{ Params: { id: number } }>,
-  reply: FastifyReply
+  reply: FastifyReply,
 ) {
   const reservationId = request.params.id;
   const userId = request.user?.id!;
@@ -326,7 +321,7 @@ export async function cancelReservationHandler(
         await cancelReservation(reservation);
 
         const { error } = await tryCatch(
-          expireCheckoutSession(reservation.checkoutId ?? "")
+          expireCheckoutSession(reservation.checkoutId ?? ""),
         );
 
         if (error) {

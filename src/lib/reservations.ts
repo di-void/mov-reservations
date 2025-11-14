@@ -5,6 +5,7 @@ import {
   reservations,
   reservedSeats,
   type SeatMeta,
+  tickets,
 } from "../db/schema";
 import {
   checkSeatsAvailabilityByShowTime,
@@ -66,9 +67,9 @@ async function createReservation(data: {
             eq(reservedSeats.startTime, showTime.startTime),
             inArray(
               reservedSeats.seatId,
-              seats.map((s) => s.seatId)
-            )
-          )
+              seats.map((s) => s.seatId),
+            ),
+          ),
         );
 
       // then return the created reservation
@@ -88,7 +89,7 @@ async function createReservation(data: {
         .returning()
         .then((r) => r.at(0));
     },
-    { behavior: "immediate" }
+    { behavior: "immediate" },
   );
 }
 
@@ -108,7 +109,7 @@ export async function atomicallyCreateReservation(data: {
 
   const available = await checkSeatsAvailabilityByShowTime(
     { hallId: data.hallId, startTime: data.startTime },
-    { seats: data.seats }
+    { seats: data.seats },
   );
   const availableSeatIds = available.map((a) => a.seatId);
 
@@ -169,8 +170,8 @@ export async function rollbackReservation(data: {
       .where(
         and(
           eq(reservations.id, reservationId),
-          eq(reservations.status, "pending")
-        )
+          eq(reservations.status, "pending"),
+        ),
       );
   });
 }
@@ -180,12 +181,53 @@ export async function cancelReservation(reservation: Reservation) {
     await releaseReservedSeatHoldsByReservationTime(
       tx,
       reservation.seats.map((s) => s.seatId),
-      reservation.createdAt
+      reservation.createdAt,
     );
 
     await tx
       .update(reservations)
       .set({ status: "cancelled", cancelledAt: new Date() })
       .where(eq(reservations.id, reservation.id));
+  });
+}
+
+export async function atomicallyConfirmReservation(data: {
+  reservation: Reservation;
+  movie: { title: string; duration: number } | null;
+  hall: { name: string } | null;
+}) {
+  const { reservation, movie, hall } = data;
+
+  const heldSeats = reservation.seats.map((s) => s.seatId);
+  return await db.transaction(async (tx) => {
+    await tx
+      .update(reservedSeats)
+      .set({
+        expiresAt: reservation.endTime,
+      })
+      .where(
+        and(
+          inArray(reservedSeats.seatId, heldSeats),
+          eq(reservedSeats.hallId, reservation.hallId),
+        ),
+      );
+
+    await tx.insert(tickets).values({
+      reservationId: reservation.id,
+      paymentStatus: "paid",
+      totalAmount: reservation.totalAmount,
+    });
+
+    const res = await tx
+      .update(reservations)
+      .set({ status: "confirmed" })
+      .where(eq(reservations.id, reservation.id))
+      .returning();
+
+    return {
+      reservation: res.at(0)!,
+      movie,
+      hall,
+    };
   });
 }

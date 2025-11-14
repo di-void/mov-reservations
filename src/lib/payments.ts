@@ -1,12 +1,5 @@
-import { and, inArray, eq } from "drizzle-orm";
 import { env } from "../../env";
-import { db } from "../db";
-import {
-  Reservation,
-  reservations,
-  reservedSeats,
-  tickets,
-} from "../db/schema";
+import { Reservation } from "../db/schema";
 import {
   findReservationById,
   updateReservationById,
@@ -15,9 +8,10 @@ import { CheckoutMetaData, serializeCheckoutMetaData } from "../utils";
 import { STRIPE_SUCCESS_URL } from "./constants";
 import logger from "./logger";
 import { stripe } from "./stripe";
+import { atomicallyConfirmReservation } from "./reservations";
 
 export async function startCheckoutSession(
-  reservation: Reservation
+  reservation: Reservation,
 ): Promise<{ redirectUrl: string }> {
   const userId = reservation.userId;
 
@@ -117,47 +111,6 @@ export async function handleCompletedCheckoutSession(data: {
       error,
     });
   }
-}
-
-export async function atomicallyConfirmReservation(data: {
-  reservation: Reservation;
-  movie: { title: string; duration: number } | null;
-  hall: { name: string } | null;
-}) {
-  const { reservation, movie, hall } = data;
-
-  const heldSeats = reservation.seats.map((s) => s.seatId);
-  return await db.transaction(async (tx) => {
-    await tx
-      .update(reservedSeats)
-      .set({
-        expiresAt: reservation.endTime,
-      })
-      .where(
-        and(
-          inArray(reservedSeats.seatId, heldSeats),
-          eq(reservedSeats.hallId, reservation.hallId)
-        )
-      );
-
-    await tx.insert(tickets).values({
-      reservationId: reservation.id,
-      paymentStatus: "paid",
-      totalAmount: reservation.totalAmount,
-    });
-
-    const res = await tx
-      .update(reservations)
-      .set({ status: "confirmed" })
-      .where(eq(reservations.id, reservation.id))
-      .returning();
-
-    return {
-      reservation: res.at(0)!,
-      movie,
-      hall,
-    };
-  });
 }
 
 export async function getCheckoutSession(checkoutId: string) {
