@@ -23,7 +23,7 @@ export function routes(fastify: FastifyInstance, opts: any) {
 
   fastify.get("/", getAllUserReservationsHandler);
   fastify.get("/:id", IdParamJsonSchema, getReservationHandler);
-  fastify.patch("/:id/confirm", confirmReservationHandler);
+  fastify.patch("/:id/confirm", IdParamJsonSchema, confirmReservationHandler);
   fastify.patch("/:id/cancel", IdParamJsonSchema, cancelReservationHandler);
 
   fastify.post(
@@ -39,6 +39,6 @@ export function routes(fastify: FastifyInstance, opts: any) {
         },
       },
     },
-    createReservationHandler
+    createReservationHandler,
   );
 }
