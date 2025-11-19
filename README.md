@@ -10,10 +10,9 @@ A comprehensive backend service for managing movie theater reservations, built w
 - [Setup & Installation](#setup--installation)
 - [Environment Variables](#environment-variables)
 - [Database](#database)
-- [API Endpoints](#api-endpoints)
-- [Authentication](#authentication)
 - [Implemented Features](#implemented-features)
-- [Upcoming Features](#upcoming-features)
+- [Planned Features](#planned-features)
+- [API Endpoints](#api-endpoints)
 
 ## Features
 
@@ -95,6 +94,7 @@ src/
 1. **Clone and Navigate**
 
    ```bash
+   git clone <repository-url>
    cd mov-reservations
    ```
 
@@ -237,6 +237,74 @@ pnpm db:seed      # Reset and re-Seed database with initial data
 pnpm db:reset     # Reset database
 ```
 
+## Implemented Features
+
+**User Management**
+
+- User registration with secure password hashing
+- JWT-based authentication and login
+- Role-based access control (admin/user)
+
+**Movie & Showtime Management**
+
+- List all movies with filtering
+- Admin movie CRUD operations
+- Showtime creation for movies in specific halls
+- Retrieve showtimes for specific movies
+
+**Hall Management**
+
+- List available cinema halls
+- Create new halls
+- Define custom hall layouts
+- Disable specific seats
+- Mark VIP seating areas
+- Configure seat gaps and custom notes
+
+**Reservation System**
+
+- Create seat reservations with automatic pricing
+- Retrieve user's reservations
+- Confirm reservations after payment
+- Cancel reservations with status tracking
+- Temporary seat holds with expiration
+
+**Payment Processing**
+
+- Stripe integration for checkout
+- Webhook handling for payment completion
+- Automatic ticket generation on payment success
+- Support for multiple seats in single transaction
+
+**Ticket Management**
+
+- Unique ticket ID generation
+- Payment status tracking (pending, processing, failed, paid, refunded)
+- Metadata storage for refund information
+
+**Refund Management**
+
+- Refund request creation and tracking
+- System-initiated and user-initiated refunds
+- Refund status management (pending, fulfilled, declined)
+
+## Planned Features
+
+**Complete Seat Chart Endpoint**
+
+- Full real-time seat availability visualization
+- Availability matrix with seat statuses
+- Reserved seat expiration handling
+- VIP/regular seat distinction
+
+**Admin Dashboard Endpoints**
+
+- Comprehensive statistics and analytics
+- Revenue tracking
+- Occupancy reports
+- User management interfaces
+- Hall and movie management dashboards
+
 ## API Endpoints
 
 All endpoints are prefixed with `/api/v1`
@@ -339,30 +407,10 @@ All endpoints are prefixed with `/api/v1`
 #### Create Hall (Admin Only)
 
 - **POST** `/halls`
-- **Body**:
-  ```json
-  {
-    "name": "string"
-  }
-  ```
 
 #### Create Hall Layout (Admin Only)
 
 - **POST** `/halls/layout`
-- **Body**:
-  ```json
-  {
-    "hallId": "number",
-    "rowCount": "number",
-    "seatsPerRow": "number",
-    "config": {
-      "disabledSeats": ["A1", "A2"],
-      "vipSeats": ["B1", "B2"],
-      "gaps": ["C5"],
-      "notes": "optional notes"
-    }
-  }
-  ```
 
 ### Reservations (Authenticated)
 
@@ -413,114 +461,3 @@ All endpoints are prefixed with `/api/v1`
 - **attachClientType**: Determines if request is from authenticated or unauthenticated client
 - **authenticate**: Validates JWT token and attaches user to request
 - **isAdmin**: Checks if user has admin role
-
-## Implemented Features
-
-**User Management**
-
-- User registration with secure password hashing
-- JWT-based authentication and login
-- Role-based access control (admin/user)
-
-**Movie & Showtime Management**
-
-- List all movies with filtering
-- Admin movie CRUD operations
-- Showtime creation for movies in specific halls
-- Retrieve showtimes for specific movies
-
-**Hall Management**
-
-- List available cinema halls
-- Create new halls
-- Define custom hall layouts
-- Disable specific seats
-- Mark VIP seating areas
-- Configure seat gaps and custom notes
-
-**Reservation System**
-
-- Create seat reservations with automatic pricing
-- Retrieve user's reservations
-- Confirm reservations after payment
-- Cancel reservations with status tracking
-- Temporary seat holds with expiration
-
-**Payment Processing**
-
-- Stripe integration for checkout
-- Webhook handling for payment completion
-- Automatic ticket generation on payment success
-- Support for multiple seats in single transaction
-
-**Ticket Management**
-
-- Unique ticket ID generation
-- Payment status tracking (pending, processing, failed, paid, refunded)
-- Metadata storage for refund information
-
-**Refund Management**
-
-- Refund request creation and tracking
-- System-initiated and user-initiated refunds
-- Refund status management (pending, fulfilled, declined)
-
-## Upcoming Features
-
-**Complete Seat Chart Endpoint**
-
-- Full real-time seat availability visualization
-- Availability matrix with seat statuses
-- Reserved seat expiration handling
-- VIP/regular seat distinction
-
-**Admin Dashboard Endpoints**
-
-- Comprehensive statistics and analytics
-- Revenue tracking
-- Occupancy reports
-- User management interfaces
-- Hall and movie management dashboards
-
-**Advanced Refund Processing**
-
-- Automated refund fulfillment
-- Stripe refund API integration
-- Audit trail for refund transactions
-
-**Email Notifications**
-
-- Confirmation emails for reservations
-- Payment receipts
-- Refund notifications
-- ShowTime reminders
-
-## API Response Format
-
-All API responses follow a consistent format:
-
-**Success Response (200, 201)**
-
-```json
-{
-  "message": "optional message",
-  "data": {}
-}
-```
-
-**Error Response (400, 401, 403, 500)**
-
-```json
-{
-  "message": "error description",
-  "errors": {}
-}
-```
-
-## Error Codes
-
-- **400**: Bad Request - Invalid input data
-- **401**: Unauthorized - Missing or invalid token
-- **403**: Forbidden - Insufficient permissions (not admin)
-- **404**: Not Found - Resource doesn't exist
-- **500**: Internal Server Error - Server-side error
