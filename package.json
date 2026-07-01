@@ -1,39 +1,23 @@
 {
   "name": "mov-reservations",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "dev": "tsx --watch ./src/app.ts",
-    "build": "tsc",
-    "start": "node ./dist/app.js",
-    "db:push": "drizzle-kit push",
-    "db:seed": "tsx ./src/db/seed.ts seed",
-    "db:reset": "tsx ./src/db/seed.ts reset",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "dev:web": "pnpm --filter @mov-reservations/web dev",
+    "build:web": "pnpm --filter @mov-reservations/web build",
+    "dev:api": "pnpm --filter @mov-reservations/api dev",
+    "start:api": "pnpm --filter @mov-reservations/api start",
+    "build:api": "pnpm --filter @mov-reservations/api build",
+    "db:push": "pnpm --filter @mov-reservations/api db:push",
+    "db:seed": "pnpm --filter @mov-reservations/api db:seed",
+    "db:reset": "pnpm --filter @mov-reservations/api db:reset",
+    "db:generate": "pnpm --filter @mov-reservations/api db:generate",
+    "db:migrate": "pnpm --filter @mov-reservations/api db:migrate"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^22.18.13",
-    "drizzle-kit": "^0.31.6",
-    "drizzle-seed": "^0.3.1",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@libsql/client": "^0.15.15",
-    "@t3-oss/env-core": "^0.13.8",
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.44.7",
-    "fastify": "^5.6.1",
-    "jsonwebtoken": "^9.0.2",
-    "stripe": "^19.3.0",
-    "superjson": "^2.2.5",
-    "zod": "^4.1.12"
+    "turbo": "^2.5.8"
   }
 }

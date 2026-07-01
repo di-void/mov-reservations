@@ -1,0 +1,44 @@
+import { FastifyInstance } from "fastify";
+import {
+  listMovies,
+  createMovie,
+  createShowTime,
+  getMovieShowTimes,
+  updateMovieHandler,
+  deleteMovieHandler,
+} from "../modules/movies/handlers";
+import {
+  CreateMovieBody,
+  CreateShowTimeBody,
+  UpdateMovieBody,
+  QueryParams,
+} from "../modules/movies/schema";
+import { authenticate, isAdmin } from "../middleware/auth";
+
+export async function routes(fastify: FastifyInstance, _options: any) {
+  // Public routes
+  fastify.get<{
+    Querystring: QueryParams;
+  }>("/", listMovies);
+
+  fastify.get("/:movieId/showtimes", getMovieShowTimes);
+
+  // Admin routes
+  const adminRouteConfig = {
+    preHandler: [authenticate, isAdmin],
+  };
+
+  fastify.post<{
+    Body: CreateMovieBody;
+  }>("/", adminRouteConfig, createMovie);
+
+  fastify.post<{
+    Body: CreateShowTimeBody;
+  }>("/showtimes", adminRouteConfig, createShowTime);
+
+  fastify.patch<{
+    Body: UpdateMovieBody;
+  }>("/:id", adminRouteConfig, updateMovieHandler);
+
+  fastify.delete("/:id", adminRouteConfig, deleteMovieHandler);
+}
