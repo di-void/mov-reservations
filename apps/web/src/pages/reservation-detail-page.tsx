@@ -1,63 +1,64 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Reservation, reservationsAPI } from '../lib/api'
+import { reservationsAPI } from '../lib/api'
 import { buttonClasses } from '../lib/class-names'
 
 export default function ReservationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [reservation, setReservation] = useState<Reservation | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [error, setError] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
+  const reservationId = id ? parseInt(id) : 0
 
-  useEffect(() => {
-    const fetchReservation = async () => {
-      if (!id) return
-      try {
-        const response = await reservationsAPI.getById(parseInt(id))
-        setReservation(response.data)
-      } catch (err: any) {
-        setError('Failed to load reservation. Please try again later.')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const reservationQuery = useQuery({
+    queryKey: ['reservations', reservationId],
+    queryFn: () =>
+      reservationsAPI
+        .getById(reservationId)
+        .then((response) => response.data.reservation),
+    enabled: Boolean(id),
+  })
 
-    fetchReservation()
-  }, [id])
+  const confirmReservation = useMutation({
+    mutationFn: () => reservationsAPI.confirm(reservationId),
+    onSuccess: (response) => {
+      queryClient.setQueryData(
+        ['reservations', reservationId],
+        response.data.reservation,
+      )
+      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+    },
+    onError: () => setError('Failed to confirm reservation. Please try again.'),
+  })
 
-  const handleConfirm = async () => {
+  const cancelReservation = useMutation({
+    mutationFn: () => reservationsAPI.cancel(reservationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      navigate('/reservations')
+    },
+    onError: () => setError('Failed to cancel reservation. Please try again.'),
+  })
+
+  const reservation = reservationQuery.data
+
+  const handleConfirm = () => {
     if (!reservation) return
-    setActionLoading(true)
-    try {
-      const response = await reservationsAPI.confirm(reservation.id)
-      setReservation(response.data)
-    } catch (err: any) {
-      setError('Failed to confirm reservation. Please try again.')
-    } finally {
-      setActionLoading(false)
-    }
+    setError('')
+    confirmReservation.mutate()
   }
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!reservation) return
     if (!window.confirm('Are you sure you want to cancel this reservation?')) {
       return
     }
-    setActionLoading(true)
-    try {
-      await reservationsAPI.cancel(reservation.id)
-      navigate('/reservations')
-    } catch (err: any) {
-      setError('Failed to cancel reservation. Please try again.')
-    } finally {
-      setActionLoading(false)
-    }
+    setError('')
+    cancelReservation.mutate()
   }
 
-  if (loading) {
+  if (reservationQuery.isLoading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center text-gray-500">Loading reservation details...</div>
@@ -65,11 +66,11 @@ export default function ReservationDetailPage() {
     )
   }
 
-  if (error || !reservation) {
+  if (error || reservationQuery.isError || !reservation) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error || 'Reservation not found'}
+          {error || 'Failed to load reservation. Please try again later.'}
         </div>
       </div>
     )
@@ -78,14 +79,15 @@ export default function ReservationDetailPage() {
   const isConfirmed = reservation.status === 'confirmed'
   const isCancelled = reservation.status === 'cancelled'
   const statusBgColor = isConfirmed ? 'bg-green-100 text-green-800' : isCancelled ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+  const actionLoading = confirmReservation.isPending || cancelReservation.isPending
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <button 
+      <button
         onClick={() => navigate('/reservations')}
         className="mb-6 text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
       >
-        ← Back to Reservations
+        Back to Reservations
       </button>
 
       <div className="bg-white rounded-lg shadow-lg p-8">
@@ -93,7 +95,8 @@ export default function ReservationDetailPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Reservation #{reservation.id}</h1>
             <p className="text-gray-600">
-              Movie ID: {reservation.movieId} • Hall: {reservation.hallId}
+              {reservation.movie?.title ?? `Movie #${reservation.movieId}`} /{' '}
+              {reservation.hall?.name ?? `Hall ${reservation.hallId}`}
             </p>
           </div>
           <span className={`inline-block px-4 py-2 rounded-full font-semibold text-sm ${statusBgColor}`}>
@@ -106,12 +109,16 @@ export default function ReservationDetailPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Seats</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {reservation.seats.map((seat) => (
-                <div 
-                  key={seat.id} 
+                <div
+                  key={seat.id}
                   className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center"
                 >
-                  <div className="font-semibold text-gray-900">{seat.seatNumber}</div>
-                  <div className="text-xs text-gray-600 mt-1">{seat.category}</div>
+                  <div className="font-semibold text-gray-900">
+                    {seat.seatNumber ?? `Seat ${seat.id}`}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {seat.category ?? (seat.price ? `$${(seat.price / 100).toFixed(2)}` : 'Seat')}
+                  </div>
                 </div>
               ))}
             </div>
@@ -123,7 +130,7 @@ export default function ReservationDetailPage() {
               <div className="flex justify-between items-center">
                 <span className="text-gray-700 font-medium">Total Price:</span>
                 <span className="text-2xl font-bold text-gray-900">
-                  ${reservation.totalPrice.toFixed(2)}
+                  ${(reservation.totalAmount / 100).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -144,7 +151,7 @@ export default function ReservationDetailPage() {
               disabled={actionLoading}
               className={`${buttonClasses.primary} flex-1`}
             >
-              {actionLoading ? 'Processing...' : 'Confirm Reservation'}
+              {confirmReservation.isPending ? 'Processing...' : 'Confirm Reservation'}
             </button>
           </div>
         )}
@@ -152,7 +159,7 @@ export default function ReservationDetailPage() {
           <div className="flex gap-3 mt-8 pt-8 border-t border-gray-200">
             <button
               onClick={handleCancel}
-              disabled={actionLoading}
+              disabled={cancelReservation.isPending}
               className={`${buttonClasses.danger} w-full`}
             >
               Cancel Reservation

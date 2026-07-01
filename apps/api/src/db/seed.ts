@@ -23,7 +23,7 @@ async function main() {
     console.log("Running seed script...");
 
     // reset the tables in the schema (clears data)
-    await reset(db, schema);
+    await reset(db as any, schema);
 
     // re-create admin user (keeps previous behavior)
     await db.insert(schema.users).values({
@@ -91,7 +91,7 @@ async function main() {
     console.log("Resetting the database");
 
     // reset the tables in the schema (clears data)
-    await reset(db, schema);
+    await reset(db as any, schema);
   }
 }
 

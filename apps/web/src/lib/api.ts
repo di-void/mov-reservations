@@ -47,21 +47,45 @@ export interface ShowTime {
 export interface Hall {
   id: number
   name: string
-  totalSeats: number
+  totalSeats?: number
 }
 
 export interface Reservation {
   id: number
-  userId: number
-  hallId: number
-  movieId: number
+  userId?: number
+  hallId?: number
+  movieId?: number
   status: 'pending' | 'confirmed' | 'cancelled'
-  totalPrice: number
+  totalAmount: number
+  seats: Array<{
+    id: number
+    seatNumber?: string
+    category?: string
+    price?: number
+  }>
+  movie?: { title: string; duration: number } | null
+  hall?: { name: string } | null
+  startTime?: string
+  endTime?: string
+}
+
+export interface SeatChart {
+  hallId: number
   seats: Array<{
     id: number
     seatNumber: string
     category: string
+    price: number
+    available: boolean
   }>
+}
+
+export interface CreateReservationResponse {
+  message: string
+  checkoutSession?: {
+    url?: string | null
+    redirectUrl?: string | null
+  }
 }
 
 // Auth
@@ -77,7 +101,18 @@ export const moviesAPI = {
   getAll: () => api.get<Movie[]>('/movies'),
   getById: (id: number) => api.get<Movie>(`/movies/${id}`),
   getShowtimes: (movieId: number) =>
-    api.get<ShowTime[]>(`/movies/${movieId}/showtimes`),
+    api.get<any[]>(`/movies/${movieId}/showtimes`).then((response) => ({
+      ...response,
+      data: response.data.map((item) => {
+        const showtime = item.show_times ?? item.showTime ?? item
+        return {
+          hallId: showtime.hallId,
+          movieId: showtime.movieId,
+          startTime: showtime.startTime,
+          endTime: showtime.endTime,
+        }
+      }),
+    })),
 }
 
 // Halls
@@ -86,24 +121,25 @@ export const hallsAPI = {
   getById: (id: number) => api.get<Hall>(`/halls/${id}`),
   getLayout: (hallId: number) =>
     api.get(`/halls/${hallId}/layout`),
-  getSeatChart: (hallId: number) =>
-    api.get(`/halls/${hallId}/seat-chart`),
+  getSeatChart: (hallId: number, time?: string) =>
+    api.get<SeatChart>(`/halls/${hallId}/seat-chart`, { params: { time } }),
 }
 
 // Reservations
 export const reservationsAPI = {
-  getAll: () => api.get<Reservation[]>('/reservations'),
-  getById: (id: number) => api.get<Reservation>(`/reservations/${id}`),
+  getAll: () => api.get<{ items: Reservation[]; page: number }>('/reservations'),
+  getById: (id: number) =>
+    api.get<{ reservation: Reservation }>(`/reservations/${id}`),
   create: (hallId: number, data: {
     movieId: number
-    startTime: string
-    seatIds: number[]
+    time: string
+    seats: number[]
   }) =>
-    api.post<Reservation>(`/reservations/${hallId}`, data),
+    api.post<CreateReservationResponse>(`/reservations/${hallId}`, data),
   confirm: (id: number) =>
-    api.patch<Reservation>(`/reservations/${id}/confirm`),
+    api.patch<{ reservation: Reservation }>(`/reservations/${id}/confirm`),
   cancel: (id: number) =>
-    api.patch<Reservation>(`/reservations/${id}/cancel`),
+    api.patch(`/reservations/${id}/cancel`),
 }
 
 export default api

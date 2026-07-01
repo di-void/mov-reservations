@@ -10,8 +10,6 @@ import { CreateHallBody, CreateHallLayoutBody } from "../modules/halls/schema";
 import { authenticate, isAdmin } from "../middleware/auth";
 
 export async function routes(fastify: FastifyInstance, _options: any) {
-  fastify.addHook("preHandler", authenticate);
-
   // Public routes
   fastify.get("/", listHallsHandler);
   fastify.get("/:hallId/layout", getHallLayoutHandler);
@@ -19,7 +17,7 @@ export async function routes(fastify: FastifyInstance, _options: any) {
 
   // Admin routes
   const adminRouteConfig = {
-    preHandler: isAdmin,
+    preHandler: [authenticate, isAdmin],
   };
 
   fastify.post<{

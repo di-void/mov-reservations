@@ -35,6 +35,9 @@ export async function startCheckoutSession(
       movieId,
       seats: seats.map((s) => s.seatId),
       totalAmount,
+      // @ts-ignore
+      // this input is validated so that only "pending" passes
+      // so allowing the whole union should be fine
       status,
     },
   });

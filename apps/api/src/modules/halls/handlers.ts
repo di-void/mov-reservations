@@ -11,6 +11,7 @@ import {
   listHalls,
   getHall,
   getHallLayout,
+  getSeatChart,
 } from "./data";
 import * as z from "zod";
 
@@ -88,5 +89,16 @@ export async function getHallSeatChartHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
-  // fetch latest hall seat chart from cache
+  const result = z
+    .object({
+      hallId: z.coerce.number().positive(),
+      time: z.coerce.date().optional(),
+    })
+    .safeParse({ ...(request.params as object), ...(request.query as object) });
+
+  if (!result.success) {
+    return reply.status(400).send({ errors: z.treeifyError(result.error) });
+  }
+
+  reply.send(await getSeatChart(result.data.hallId, result.data.time));
 }

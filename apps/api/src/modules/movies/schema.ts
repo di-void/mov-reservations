@@ -18,6 +18,7 @@ export const createShowTimeSchema = z.object({
   hallId: z.number().positive(),
   movieId: z.number().positive(),
   time: z.coerce.date(),
+  endTime: z.coerce.date().optional(),
 });
 
 // Schema for route parameters that require an ID

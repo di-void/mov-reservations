@@ -36,8 +36,14 @@ export async function addShowTime(data: {
   hallId: number;
   movieId: number;
   time: Date;
+  endTime?: Date;
 }) {
-  return db.insert(showTimes).values(data);
+  return db.insert(showTimes).values({
+    hallId: data.hallId,
+    movieId: data.movieId,
+    startTime: data.time,
+    endTime: data.endTime ?? data.time,
+  });
 }
 
 export async function getShowTimesForMovie(movieId: number) {

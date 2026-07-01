@@ -137,7 +137,6 @@ export async function updateReservationById(
     .set(data)
     .where(eq(reservations.id, id))
     .returning()
-    .limit(1)
     .then((r) => r.at(0));
 }
 

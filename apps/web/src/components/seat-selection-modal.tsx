@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Movie, ShowTime, Hall, hallsAPI, reservationsAPI } from '../lib/api'
 import { buttonClasses } from '../lib/class-names'
 
@@ -22,27 +23,39 @@ export default function SeatSelectionModal({
   hall,
   onClose,
 }: SeatSelectionModalProps) {
-  const [seats, setSeats] = useState<Seat[]>([])
   const [selectedSeats, setSelectedSeats] = useState<number[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    const fetchSeats = async () => {
-      try {
-        const response = await hallsAPI.getSeatChart(showtime.hallId)
-        setSeats(response.data.seats || [])
-      } catch (err: any) {
-        setError('Failed to load seats. Please try again.')
-        console.error(err)
-      } finally {
-        setLoading(false)
+  const seatsQuery = useQuery({
+    queryKey: ['halls', showtime.hallId, 'seat-chart', showtime.startTime],
+    queryFn: () =>
+      hallsAPI
+        .getSeatChart(showtime.hallId, showtime.startTime)
+        .then((response) => response.data.seats),
+  })
+  const createReservation = useMutation({
+    mutationFn: () =>
+      reservationsAPI.create(showtime.hallId, {
+        movieId: movie.id,
+        time: showtime.startTime,
+        seats: selectedSeats,
+    }),
+    onSuccess: (response) => {
+      const checkoutUrl =
+        response.data.checkoutSession?.url ??
+        response.data.checkoutSession?.redirectUrl
+      if (checkoutUrl) {
+        window.open(checkoutUrl, '_blank')
       }
-    }
-
-    fetchSeats()
-  }, [showtime.hallId])
+      onClose()
+    },
+    onError: (err: any) => {
+      setError(
+        err.response?.data?.message ||
+          'Failed to create reservation. Please try again.'
+      )
+    },
+  })
+  const seats: Seat[] = seatsQuery.data ?? []
 
   const handleSeatClick = (seatId: number, available: boolean) => {
     if (!available) return
@@ -60,30 +73,8 @@ export default function SeatSelectionModal({
       return
     }
 
-    setSubmitting(true)
     setError('')
-
-    try {
-      const response = await reservationsAPI.create(showtime.hallId, {
-        movieId: movie.id,
-        startTime: showtime.startTime,
-        seatIds: selectedSeats,
-      })
-
-      // Redirect to checkout URL if available
-      if (response.data && (response.data as any).checkoutUrl) {
-        window.open((response.data as any).checkoutUrl, '_blank')
-      }
-
-      onClose()
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          'Failed to create reservation. Please try again.'
-      )
-    } finally {
-      setSubmitting(false)
-    }
+    createReservation.mutate()
   }
 
   const startTime = new Date(showtime.startTime).toLocaleString()
@@ -107,15 +98,20 @@ export default function SeatSelectionModal({
         </div>
 
         <div className="p-6">
-          {loading && (
+          {seatsQuery.isLoading && (
             <div className="text-center text-gray-500">Loading seats...</div>
+          )}
+          {seatsQuery.isError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4">
+              Failed to load seats. Please try again.
+            </div>
           )}
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm mb-4">
               {error}
             </div>
           )}
-          {!loading && seats.length > 0 && (
+          {!seatsQuery.isLoading && seats.length > 0 && (
             <>
               <div className="text-center mb-6 pb-4 border-b border-gray-200">
                 <div className="inline-block bg-gray-200 text-gray-700 px-4 py-2 rounded font-semibold text-sm">
@@ -186,7 +182,7 @@ export default function SeatSelectionModal({
           )}
         </div>
 
-        {!loading && (
+        {!seatsQuery.isLoading && (
           <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50">
             <button 
               onClick={onClose}
@@ -196,10 +192,10 @@ export default function SeatSelectionModal({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting || selectedSeats.length === 0}
+              disabled={createReservation.isPending || selectedSeats.length === 0}
               className={`${buttonClasses.primary} flex-1`}
             >
-              {submitting ? 'Processing...' : 'Continue to Payment'}
+              {createReservation.isPending ? 'Processing...' : 'Continue to Payment'}
             </button>
           </div>
         )}

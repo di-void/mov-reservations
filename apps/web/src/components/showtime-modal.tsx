@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Movie, ShowTime, moviesAPI, hallsAPI, Hall } from '../lib/api'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Movie, ShowTime, moviesAPI, hallsAPI } from '../lib/api'
 import SeatSelectionModal from './seat-selection-modal'
 
 interface ShowtimeModalProps {
@@ -8,35 +9,25 @@ interface ShowtimeModalProps {
 }
 
 export default function ShowtimeModal({ movie, onClose }: ShowtimeModalProps) {
-  const [showtimes, setShowtimes] = useState<ShowTime[]>([])
-  const [halls, setHalls] = useState<Map<number, Hall>>(new Map())
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [selectedShowtime, setSelectedShowtime] = useState<ShowTime | null>(
     null
   )
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [showtimesRes, hallsRes] = await Promise.all([
-          moviesAPI.getShowtimes(movie.id),
-          hallsAPI.getAll(),
-        ])
-
-        setShowtimes(showtimesRes.data)
-        const hallMap = new Map(hallsRes.data.map((h) => [h.id, h]))
-        setHalls(hallMap)
-      } catch (err: any) {
-        setError('Failed to load showtimes. Please try again.')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [movie.id])
+  const showtimesQuery = useQuery({
+    queryKey: ['movies', movie.id, 'showtimes'],
+    queryFn: () => moviesAPI.getShowtimes(movie.id).then((response) => response.data),
+  })
+  const hallsQuery = useQuery({
+    queryKey: ['halls'],
+    queryFn: () => hallsAPI.getAll().then((response) => response.data),
+  })
+  const halls = useMemo(
+    () => new Map((hallsQuery.data ?? []).map((hall) => [hall.id, hall])),
+    [hallsQuery.data],
+  )
+  const showtimes = showtimesQuery.data ?? []
+  const loading = showtimesQuery.isLoading || hallsQuery.isLoading
+  const error = showtimesQuery.isError || hallsQuery.isError
 
   if (selectedShowtime) {
     return (
@@ -66,7 +57,7 @@ export default function ShowtimeModal({ movie, onClose }: ShowtimeModalProps) {
           {loading && <div className="text-center text-gray-500">Loading showtimes...</div>}
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
+              Failed to load showtimes. Please try again.
             </div>
           )}
           {!loading && !error && showtimes.length === 0 && (

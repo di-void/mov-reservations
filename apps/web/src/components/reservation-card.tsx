@@ -27,20 +27,22 @@ export default function ReservationCard({
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600 font-medium">Hall:</span>
-            <span className="text-gray-900">Hall {reservation.hallId}</span>
+            <span className="text-gray-900">
+              {reservation.hall?.name ?? `Hall ${reservation.hallId}`}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600 font-medium">Seats:</span>
             <span className="text-gray-900">
               {reservation.seats
-                .map((s) => s.seatNumber)
+                .map((s) => s.seatNumber ?? `Seat ${s.id}`)
                 .join(', ')}
             </span>
           </div>
           <div className="flex justify-between pt-2 border-t border-gray-200">
             <span className="text-gray-600 font-medium">Total Price:</span>
             <span className="text-lg font-bold text-gray-900">
-              ${reservation.totalPrice.toFixed(2)}
+              ${(reservation.totalAmount / 100).toFixed(2)}
             </span>
           </div>
         </div>

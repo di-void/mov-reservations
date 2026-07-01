@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
@@ -8,27 +9,26 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      const response = await authAPI.login({ email, password })
+  const login = useMutation({
+    mutationFn: () => authAPI.login({ email, password }),
+    onSuccess: (response) => {
       setAuth(response.data.user, response.data.token)
       navigate('/')
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       setError(
         err.response?.data?.message ||
           'Login failed. Please check your credentials.'
       )
-    } finally {
-      setLoading(false)
-    }
+    },
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    login.mutate()
   }
 
   return (
@@ -71,10 +71,10 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={login.isPending}
             className={`${buttonClasses.primary} w-full`}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {login.isPending ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <p className="mt-6 text-center text-gray-600 text-sm">

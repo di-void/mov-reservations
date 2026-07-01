@@ -1,29 +1,14 @@
-import { useState, useEffect } from 'react'
-import { moviesAPI, Movie } from '../lib/api'
+import { useQuery } from '@tanstack/react-query'
+import { moviesAPI } from '../lib/api'
 import MovieCard from '../components/movie-card'
 
 export default function MoviesPage() {
-  const [movies, setMovies] = useState<Movie[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data: movies = [], isLoading, isError } = useQuery({
+    queryKey: ['movies'],
+    queryFn: () => moviesAPI.getAll().then((response) => response.data),
+  })
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        const response = await moviesAPI.getAll()
-        setMovies(response.data)
-      } catch (err: any) {
-        setError('Failed to load movies. Please try again later.')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchMovies()
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center text-gray-500">Loading movies...</div>
@@ -31,11 +16,11 @@ export default function MoviesPage() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+          Failed to load movies. Please try again later.
         </div>
       </div>
     )

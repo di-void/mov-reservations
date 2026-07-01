@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../lib/api'
 import { useAuthStore } from '../store/auth-store'
@@ -9,27 +10,26 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const setAuth = useAuthStore((state) => state.setAuth)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    try {
-      const response = await authAPI.register({ name, email, password })
+  const register = useMutation({
+    mutationFn: () => authAPI.register({ name, email, password }),
+    onSuccess: (response) => {
       setAuth(response.data.user, response.data.token)
       navigate('/')
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       setError(
         err.response?.data?.message ||
           'Registration failed. Please try again.'
       )
-    } finally {
-      setLoading(false)
-    }
+    },
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    register.mutate()
   }
 
   return (
@@ -86,10 +86,10 @@ export default function RegisterPage() {
           </div>
           <button
             type="submit"
-            disabled={loading}
+            disabled={register.isPending}
             className={`${buttonClasses.primary} w-full`}
           >
-            {loading ? 'Creating account...' : 'Register'}
+            {register.isPending ? 'Creating account...' : 'Register'}
           </button>
         </form>
         <p className="mt-6 text-center text-gray-600 text-sm">

@@ -1,31 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Reservation, reservationsAPI } from '../lib/api'
+import { reservationsAPI } from '../lib/api'
 import ReservationCard from '../components/reservation-card'
 import { buttonClasses } from '../lib/class-names'
 
 export default function ReservationsPage() {
-  const [reservations, setReservations] = useState<Reservation[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { data: reservations = [], isLoading, isError } = useQuery({
+    queryKey: ['reservations'],
+    queryFn: () => reservationsAPI.getAll().then((response) => response.data.items),
+  })
 
-  useEffect(() => {
-    const fetchReservations = async () => {
-      try {
-        const response = await reservationsAPI.getAll()
-        setReservations(response.data)
-      } catch (err: any) {
-        setError('Failed to load reservations. Please try again later.')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchReservations()
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center text-gray-500">Loading your reservations...</div>
@@ -33,11 +18,11 @@ export default function ReservationsPage() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+          Failed to load reservations. Please try again later.
         </div>
       </div>
     )

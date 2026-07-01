@@ -16,8 +16,6 @@ import {
 import { authenticate, isAdmin } from "../middleware/auth";
 
 export async function routes(fastify: FastifyInstance, _options: any) {
-  fastify.addHook("preHandler", authenticate);
-
   // Public routes
   fastify.get<{
     Querystring: QueryParams;
@@ -27,7 +25,7 @@ export async function routes(fastify: FastifyInstance, _options: any) {
 
   // Admin routes
   const adminRouteConfig = {
-    preHandler: isAdmin,
+    preHandler: [authenticate, isAdmin],
   };
 
   fastify.post<{

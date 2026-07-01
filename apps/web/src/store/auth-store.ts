@@ -13,9 +13,25 @@ interface AuthStore {
   initializeAuth: () => void
 }
 
+function getStoredAuth() {
+  const token = localStorage.getItem('token')
+  const userStr = localStorage.getItem('user')
+
+  if (!token || !userStr) {
+    return { user: null, token: null }
+  }
+
+  try {
+    return { user: JSON.parse(userStr) as User, token }
+  } catch {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    return { user: null, token: null }
+  }
+}
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  token: null,
+  ...getStoredAuth(),
   isLoading: false,
   error: null,
 
@@ -34,17 +50,5 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setError: (error) => set({ error }),
   setLoading: (isLoading) => set({ isLoading }),
 
-  initializeAuth: () => {
-    const token = localStorage.getItem('token')
-    const userStr = localStorage.getItem('user')
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr)
-        set({ user, token })
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
-      }
-    }
-  },
+  initializeAuth: () => set(getStoredAuth()),
 }))
