@@ -198,34 +198,64 @@ export async function atomicallyConfirmReservation(data: {
 }) {
   const { reservation, movie, hall } = data;
 
-  const heldSeats = reservation.seats.map((s) => s.seatId);
   return await db.transaction(async (tx) => {
-    await tx
+    const confirmedReservation = await tx
+      .update(reservations)
+      .set({ status: "confirmed" })
+      .where(
+        and(
+          eq(reservations.id, reservation.id),
+          eq(reservations.status, "pending"),
+        ),
+      )
+      .returning()
+      .then((rows) => rows.at(0));
+
+    if (!confirmedReservation) {
+      const currentReservation = await tx
+        .select()
+        .from(reservations)
+        .where(eq(reservations.id, reservation.id))
+        .limit(1)
+        .then((rows) => rows.at(0));
+
+      if (currentReservation?.status === "confirmed") {
+        return { reservation: currentReservation, movie, hall };
+      }
+
+      throw new Error(`Reservation ${reservation.id} is not pending`);
+    }
+
+    const heldSeats = confirmedReservation.seats.map((s) => s.seatId);
+    const updatedSeats = await tx
       .update(reservedSeats)
       .set({
-        expiresAt: reservation.endTime,
+        expiresAt: confirmedReservation.endTime,
       })
       .where(
         and(
           inArray(reservedSeats.seatId, heldSeats),
-          eq(reservedSeats.hallId, reservation.hallId),
+          eq(reservedSeats.hallId, confirmedReservation.hallId),
+          eq(reservedSeats.startTime, confirmedReservation.startTime),
+          eq(reservedSeats.reservedAt, confirmedReservation.createdAt),
         ),
+      )
+      .returning({ seatId: reservedSeats.seatId });
+
+    if (updatedSeats.length !== heldSeats.length) {
+      throw new Error(
+        `Reservation ${reservation.id} no longer owns all held seats`,
       );
+    }
 
     await tx.insert(tickets).values({
-      reservationId: reservation.id,
+      reservationId: confirmedReservation.id,
       paymentStatus: "paid",
-      totalAmount: reservation.totalAmount,
+      totalAmount: confirmedReservation.totalAmount,
     });
 
-    const res = await tx
-      .update(reservations)
-      .set({ status: "confirmed" })
-      .where(eq(reservations.id, reservation.id))
-      .returning();
-
     return {
-      reservation: res.at(0)!,
+      reservation: confirmedReservation,
       movie,
       hall,
     };
