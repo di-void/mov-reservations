@@ -10,10 +10,9 @@ export const db =
   global.__db__ ||
   (global.__db__ = drizzle({
     connection: { url: env.DATABASE_URL },
-    logger: true,
+    logger: env.NODE_ENV !== "test",
     casing: "snake_case",
   }));
 
-const tx = db.transaction(async (t) => t);
 export type DB = typeof db;
-export type DBTransaction = Awaited<typeof tx>;
+export type DBTransaction = Parameters<Parameters<DB["transaction"]>[0]>[0];

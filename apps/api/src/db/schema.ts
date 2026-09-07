@@ -212,7 +212,8 @@ export const tickets = sqliteTable("tickets", {
     .primaryKey(),
   reservationId: integer()
     .notNull()
-    .references(() => reservations.id),
+    .references(() => reservations.id)
+    .unique(),
   paymentStatus: text({
     enum: ["pending", "processing", "failed", "paid", "refunded"],
   }).notNull(),
