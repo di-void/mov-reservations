@@ -13,29 +13,6 @@ import {
 } from "../modules/reservations/data";
 import { getTotalAmountFromSeats } from "../utils";
 
-async function tryInitReservedSeats(data: {
-  seats: number[];
-  showTime: { hallId: number; startTime: Date };
-}) {
-  const values = data.seats.map((sId) => ({
-    seatId: sId,
-    expiresAt: null,
-    hallId: data.showTime.hallId,
-    startTime: data.showTime.startTime,
-  }));
-
-  await db
-    .insert(reservedSeats)
-    .values(values)
-    .onConflictDoNothing({
-      target: [
-        reservedSeats.hallId,
-        reservedSeats.seatId,
-        reservedSeats.startTime,
-      ],
-    });
-}
-
 async function createReservation(data: {
   seats: number[];
   movieId: number;
@@ -45,6 +22,24 @@ async function createReservation(data: {
   const { seats: requestedSeats, showTime, userId, movieId } = data;
   return await db.transaction(
     async (tx) => {
+      await tx
+        .insert(reservedSeats)
+        .values(
+          requestedSeats.map((seatId) => ({
+            seatId,
+            expiresAt: null,
+            hallId: showTime.hallId,
+            startTime: showTime.startTime,
+          })),
+        )
+        .onConflictDoNothing({
+          target: [
+            reservedSeats.hallId,
+            reservedSeats.seatId,
+            reservedSeats.startTime,
+          ],
+        });
+
       const available = await checkSeatsAvailabilityByShowTime(
         { hallId: showTime.hallId, startTime: showTime.startTime },
         { seats: requestedSeats },
@@ -116,12 +111,6 @@ export async function atomicallyCreateReservation(data: {
   userId: number;
   movieId: number;
 }) {
-  // lazily initialize requested seats
-  await tryInitReservedSeats({
-    seats: data.seats,
-    showTime: { startTime: data.startTime, hallId: data.hallId },
-  });
-
   return await createReservation({
     seats: data.seats,
     showTime: {
