@@ -131,9 +131,28 @@ POST /stripe/webhooks
 
 Reservation creation returns a pending reservation and a Stripe checkout URL.
 
+## Testing
+
+The API has a small database integration suite focused on reservation invariants and concurrency regressions. Run it from the repository root:
+
+```bash
+pnpm --filter @mov-reservations/api test
+```
+
+The suite verifies that:
+
+- Only one of two competing requests can claim the same seat.
+- A multi-seat request claims every requested seat or none of them.
+- Concurrent confirmation creates one ticket and one confirmed reservation.
+- Confirming a reservation does not change the same seat at another showtime.
+- A reservation cannot confirm an expired hold after another reservation acquires it.
+
+Tests use the real Drizzle queries and transactions against a disposable local libSQL database created from the checked-in migrations. Race tests run the competing operations in separate processes so they use independent database connections. The test database is removed after the suite, and no development database or Stripe account is used.
+
 ## Useful Scripts
 
 ```bash
+pnpm --filter @mov-reservations/api test
 pnpm db:push      # apply schema to DB
 pnpm db:seed      # reset and seed demo data
 pnpm db:reset     # reset DB
