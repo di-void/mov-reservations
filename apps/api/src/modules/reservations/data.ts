@@ -46,12 +46,13 @@ export async function insertReservedSeats(seats: NewReservedSeat[]) {
 // showtime = hallId + startTime
 export async function checkSeatsAvailabilityByShowTime(
   showTime: { startTime: Date; hallId: number },
-  filter: { seats: number[] }
+  filter: { seats: number[] },
+  dbTx: DBTransaction | DB = db,
 ) {
   const { hallId, startTime } = showTime;
   const now = new Date(Date.now());
 
-  return db
+  return dbTx
     .select({
       ...getTableColumns(reservedSeats),
       priceId: seats.priceId,
