@@ -1,4 +1,5 @@
-import { drizzle } from "drizzle-orm/libsql";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import { env } from "../../env";
 
 // reuse db instance in a global variable
@@ -9,7 +10,7 @@ declare global {
 export const db =
   global.__db__ ||
   (global.__db__ = drizzle({
-    connection: { url: env.DATABASE_URL },
+    client: new Pool({ connectionString: env.DATABASE_URL }),
     logger: env.NODE_ENV !== "test",
     casing: "snake_case",
   }));

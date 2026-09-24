@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { and, eq } from "drizzle-orm";
-import { migrate } from "drizzle-orm/libsql/migrator";
 import { db } from "../src/db";
 import {
   halls,
@@ -29,13 +29,48 @@ const secondEndTime = new Date("2030-01-01T18:00:00.000Z");
 const fixtureTime = new Date("2029-01-01T00:00:00.000Z");
 
 before(async () => {
-  await migrate(db, {
-    migrationsFolder: join(__dirname, "..", "drizzle"),
-  });
+  const schema = process.env.TEST_DATABASE_SCHEMA;
+  if (!schema || !/^mov_reservations_test_[a-f0-9]{12}$/.test(schema)) {
+    throw new Error("Missing isolated test schema");
+  }
+
+  const client = await db.$client.connect();
+  try {
+    const { rows } = await client.query("select current_setting('search_path') as path");
+    if (rows[0]?.path !== schema) throw new Error("Test connection is not isolated");
+
+    await client.query("BEGIN");
+    await client.query(`CREATE SCHEMA "${schema}"`);
+    const migrationDir = join(__dirname, "..", "drizzle");
+    const journal = JSON.parse(
+      await readFile(join(migrationDir, "meta", "_journal.json"), "utf8"),
+    ) as { entries: { tag: string }[] };
+
+    for (const { tag } of journal.entries) {
+      const sql = (await readFile(join(migrationDir, `${tag}.sql`), "utf8"))
+        .replaceAll('"public".', `"${schema}".`);
+      for (const statement of sql.split("--> statement-breakpoint")) {
+        if (statement.trim()) await client.query(statement);
+      }
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 
 after(async () => {
-  db.$client.close();
+  try {
+    const schema = process.env.TEST_DATABASE_SCHEMA;
+    if (schema && /^mov_reservations_test_[a-f0-9]{12}$/.test(schema)) {
+      await db.$client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    }
+  } finally {
+    await db.$client.end();
+  }
 });
 
 beforeEach(async () => {
