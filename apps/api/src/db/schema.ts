@@ -1,48 +1,51 @@
 import {
-  sqliteTable,
+  pgTable,
   integer,
   text,
+  serial,
+  timestamp,
+  jsonb,
   primaryKey,
   foreignKey,
   unique,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 import { generateTicketId } from "../utils";
 
 export const ROLES = ["admin", "user"] as const;
 
-export const users = sqliteTable("users", {
-  id: integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+export const users = pgTable("users", {
+  id: serial().primaryKey(),
   name: text().notNull(),
   email: text().notNull().unique(),
   password: text().notNull(),
   role: text({ enum: ROLES }).notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 })
     .notNull()
-    .default(new Date())
+    .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
-export const movies = sqliteTable("movies", {
-  id: integer().primaryKey(),
+export const movies = pgTable("movies", {
+  id: serial().primaryKey(),
   title: text().notNull(),
   description: text().notNull(),
-  releaseDate: integer({ mode: "timestamp" }).notNull(),
-  duration: integer({ mode: "number" }).notNull(), // seconds
+  releaseDate: timestamp({ withTimezone: true, precision: 3 }).notNull(),
+  duration: integer().notNull(), // seconds
   rating: integer().notNull(),
   genre: text().notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 })
     .notNull()
-    .default(new Date())
+    .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
 export type Movie = typeof movies.$inferSelect;
 
-export const showTimes = sqliteTable(
+export const showTimes = pgTable(
   "show_times",
   {
     hallId: integer()
@@ -51,35 +54,35 @@ export const showTimes = sqliteTable(
     movieId: integer()
       .notNull()
       .references(() => movies.id),
-    startTime: integer({ mode: "timestamp" }).notNull(),
-    endTime: integer({ mode: "timestamp" }).notNull(),
-    createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-    updatedAt: integer({ mode: "timestamp" })
+    startTime: timestamp({ withTimezone: true, precision: 3 }).notNull(),
+    endTime: timestamp({ withTimezone: true, precision: 3 }).notNull(),
+    createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true, precision: 3 })
       .notNull()
-      .default(new Date())
+      .defaultNow()
       .$onUpdateFn(() => new Date()),
   },
   (table) => [primaryKey({ columns: [table.hallId, table.startTime] })]
 );
 
-export const halls = sqliteTable("halls", {
-  id: integer().primaryKey(),
+export const halls = pgTable("halls", {
+  id: serial().primaryKey(),
   name: text().notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 })
     .notNull()
-    .default(new Date())
+    .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
 export type Hall = typeof halls.$inferSelect;
 
-export const pricingRules = sqliteTable(
+export const pricingRules = pgTable(
   "pricing_rules",
   {
-    id: integer({ mode: "number" }).primaryKey(),
+    id: serial().primaryKey(),
     hallId: integer().references(() => halls.id, { onDelete: "cascade" }), // nullable to allow for category override
     category: text().notNull(),
-    price: integer({ mode: "number" }).notNull(), // in cents
+    price: integer().notNull(), // in cents
     // externalProductId: text().notNull(), // product id
   },
   (table) => [unique().on(table.hallId, table.category)]
@@ -94,29 +97,29 @@ type Config = {
   notes: string;
 };
 
-export const hallLayouts = sqliteTable("hall_layouts", {
-  id: integer().primaryKey(),
-  config: text({ mode: "json" }).$type<Config>().notNull(),
+export const hallLayouts = pgTable("hall_layouts", {
+  id: serial().primaryKey(),
+  config: jsonb().$type<Config>().notNull(),
   hallId: integer()
     .references(() => halls.id)
     .notNull(),
   rowCount: integer().notNull(),
   seatsPerRow: integer().notNull(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 })
     .notNull()
-    .default(new Date())
+    .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
 
-export const seats = sqliteTable(
+export const seats = pgTable(
   "seats",
   {
     id: integer().notNull(),
     priceId: integer()
       .references(() => pricingRules.id)
       .notNull(),
-    hallId: integer({ mode: "number" })
+    hallId: integer()
       .references(() => halls.id)
       .notNull(),
   },
@@ -127,14 +130,14 @@ export const seats = sqliteTable(
   ]
 );
 
-export const reservedSeats = sqliteTable(
+export const reservedSeats = pgTable(
   "reserved_seats",
   {
     hallId: integer().notNull(),
     seatId: integer().notNull(),
-    startTime: integer({ mode: "timestamp" }),
-    reservedAt: integer({ mode: "timestamp" }),
-    expiresAt: integer({ mode: "timestamp" }),
+    startTime: timestamp({ withTimezone: true, precision: 3 }).notNull(),
+    reservedAt: timestamp({ withTimezone: true, precision: 3 }),
+    expiresAt: timestamp({ withTimezone: true, precision: 3 }),
   },
   (table) => [
     primaryKey({
@@ -158,28 +161,28 @@ export type SeatMeta = {
   seatId: number;
   price: PriceMeta;
 };
-export const reservations = sqliteTable(
+export const reservations = pgTable(
   "reservations",
   {
-    id: integer().primaryKey(),
-    seats: text({ mode: "json" }).$type<SeatMeta[]>().notNull(),
+    id: serial().primaryKey(),
+    seats: jsonb().$type<SeatMeta[]>().notNull(),
     userId: integer()
       .notNull()
       .references(() => users.id),
-    hallId: integer({ mode: "number" }).notNull(),
-    movieId: integer({ mode: "number" }).notNull(),
+    hallId: integer().notNull(),
+    movieId: integer().notNull(),
     checkoutId: text(),
-    startTime: integer({ mode: "timestamp" }).notNull(),
-    endTime: integer({ mode: "timestamp" }).notNull(),
+    startTime: timestamp({ withTimezone: true, precision: 3 }).notNull(),
+    endTime: timestamp({ withTimezone: true, precision: 3 }).notNull(),
     status: text({
       enum: ["pending", "confirmed", "cancelled"],
     }).notNull(),
-    totalAmount: integer({ mode: "number" }).notNull(),
-    createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-    cancelledAt: integer({ mode: "timestamp" }),
-    updatedAt: integer({ mode: "timestamp" })
+    totalAmount: integer().notNull(),
+    createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+    cancelledAt: timestamp({ withTimezone: true, precision: 3 }),
+    updatedAt: timestamp({ withTimezone: true, precision: 3 })
       .notNull()
-      .default(new Date())
+      .defaultNow()
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
@@ -206,7 +209,7 @@ export type TicketMeta = {
   refund?: { initiator: "system" | "user"; [x: string]: any };
   [x: string]: any;
 };
-export const tickets = sqliteTable("tickets", {
+export const tickets = pgTable("tickets", {
   id: text()
     .$defaultFn(() => generateTicketId())
     .primaryKey(),
@@ -217,19 +220,19 @@ export const tickets = sqliteTable("tickets", {
   paymentStatus: text({
     enum: ["pending", "processing", "failed", "paid", "refunded"],
   }).notNull(),
-  totalAmount: integer({ mode: "number" }).notNull(), // in cents
-  metadata: text({ mode: "json" }).$type<TicketMeta>(),
-  createdAt: integer({ mode: "timestamp" }).notNull().default(new Date()),
-  updatedAt: integer({ mode: "timestamp" })
+  totalAmount: integer().notNull(), // in cents
+  metadata: jsonb().$type<TicketMeta>(),
+  createdAt: timestamp({ withTimezone: true, precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true, precision: 3 })
     .notNull()
-    .default(new Date())
+    .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
 export type NewTicket = typeof tickets.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 
-export const refundRequests = sqliteTable("refund_requests", {
-  id: integer().primaryKey(),
+export const refundRequests = pgTable("refund_requests", {
+  id: serial().primaryKey(),
   userId: integer()
     .references(() => users.id)
     .notNull(),

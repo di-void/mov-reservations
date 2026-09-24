@@ -1,26 +1,20 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import "dotenv/config";
+import { randomUUID } from "node:crypto";
 
-const testDirectory =
-  process.env.TEST_DATABASE_DIRECTORY ??
-  mkdtempSync(join(tmpdir(), "mov-reservations-"));
+const databaseUrl = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("DATABASE_URL or TEST_DATABASE_URL is required");
 
-process.env.TEST_DATABASE_DIRECTORY = testDirectory;
-process.env.DATABASE_URL = pathToFileURL(
-  join(testDirectory, "reservations.db"),
-).href;
+const parsedUrl = new URL(databaseUrl);
+if (!["postgres:", "postgresql:"].includes(parsedUrl.protocol)) {
+  throw new Error("Integration tests require a PostgreSQL URL");
+}
+
+const testSchema = `mov_reservations_test_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+parsedUrl.searchParams.set("options", `-c search_path=${testSchema}`);
+process.env.TEST_DATABASE_SCHEMA = testSchema;
+process.env.DATABASE_URL = parsedUrl.toString();
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-secret";
 process.env.STRIPE_KEY = "test-stripe-key";
 process.env.STRIPE_PRODUCT_ID = "test-product";
 process.env.STRIPE_WEBHOOK_SECRET = "test-webhook-secret";
-
-process.once("exit", () => {
-  try {
-    rmSync(testDirectory, { recursive: true, force: true });
-  } catch {
-    // The parent test runner retries cleanup after worker database handles close.
-  }
-});

@@ -23,7 +23,7 @@ void prepareWorker();
 
 async function prepareWorker() {
   try {
-    await db.$client.execute("PRAGMA busy_timeout = 5000");
+    await db.$client.query("SELECT 1");
     process.send?.({ type: "ready" });
     process.once("message", runOperation);
   } catch (error) {
@@ -59,7 +59,7 @@ function sendError(error: unknown) {
   );
 }
 
-function closeWorker() {
-  db.$client.close();
+async function closeWorker() {
+  await db.$client.end();
   process.disconnect();
 }

@@ -4,7 +4,7 @@ Movie reservation app with a Fastify API and React web frontend.
 
 ## Stack
 
-- API: Fastify, TypeScript, Drizzle ORM, libSQL/SQLite, Stripe
+- API: Fastify, TypeScript, Drizzle ORM, PostgreSQL, Stripe
 - Web: React, Vite, TanStack Query, Zustand, Tailwind CSS
 - Package manager: pnpm workspace
 
@@ -24,17 +24,17 @@ pnpm install
 Create `apps/api/.env`:
 
 ```env
-DATABASE_URL=file:./app.db
+DATABASE_URL=postgresql://user:password@host:5432/mov_reservations
 JWT_SECRET=dev-secret
 STRIPE_KEY=sk_test_...
 STRIPE_PRODUCT_ID=prod_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-Sync and seed the database:
+Create an empty PostgreSQL database, then migrate and seed it:
 
 ```bash
-pnpm db:push
+pnpm db:migrate
 pnpm db:seed
 ```
 
@@ -147,13 +147,13 @@ The suite verifies that:
 - Confirming a reservation does not change the same seat at another showtime.
 - A reservation cannot confirm an expired hold after another reservation acquires it.
 
-Tests use the real Drizzle queries and transactions against a disposable local libSQL database created from the checked-in migrations. Race tests run the competing operations in separate processes so they use independent database connections. The test database is removed after the suite, and no development database or Stripe account is used.
+Tests use the real Drizzle queries and transactions against PostgreSQL. They create a unique `mov_reservations_test_*` schema in the database from `apps/api/.env` (or `TEST_DATABASE_URL`), apply the checked-in migrations there, and drop that schema afterward. The database user needs permission to create schemas. Every test connection uses only that schema in its search path, so tables in `public` are untouched. Race tests run competing operations in separate processes with independent connections. Tests do not contact Stripe.
 
 ## Useful Scripts
 
 ```bash
 pnpm --filter @mov-reservations/api test
-pnpm db:push      # apply schema to DB
+pnpm db:push      # sync schema directly for local prototyping
 pnpm db:seed      # reset and seed demo data
 pnpm db:reset     # reset DB
 pnpm db:generate  # generate migrations

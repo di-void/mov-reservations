@@ -1,62 +1,56 @@
 {
-  "version": "6",
-  "dialect": "sqlite",
-  "id": "28245793-e56c-4cb6-8ae5-c353998c294f",
+  "id": "7a008418-a5a7-4f15-8f79-f1fc41cc31f9",
   "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
   "tables": {
-    "hall_layouts": {
+    "public.hall_layouts": {
       "name": "hall_layouts",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "config": {
           "name": "config",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "row_count": {
           "name": "row_count",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "seats_per_row": {
           "name": "seats_per_row",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -77,165 +71,148 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "halls": {
+    "public.halls": {
       "name": "halls",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "movies": {
+    "public.movies": {
       "name": "movies",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "title": {
           "name": "title",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "description": {
           "name": "description",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "release_date": {
           "name": "release_date",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "duration": {
           "name": "duration",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "rating": {
           "name": "rating",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "genre": {
           "name": "genre",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "pricing_rules": {
+    "public.pricing_rules": {
       "name": "pricing_rules",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "category": {
           "name": "category",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "price": {
           "name": "price",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
-      "indexes": {
-        "pricing_rules_hallId_category_unique": {
-          "name": "pricing_rules_hallId_category_unique",
-          "columns": [
-            "hall_id",
-            "category"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "pricing_rules_hall_id_halls_id_fk": {
           "name": "pricing_rules_hall_id_halls_id_fk",
@@ -252,39 +229,47 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {
+        "pricing_rules_hallId_category_unique": {
+          "name": "pricing_rules_hallId_category_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "hall_id",
+            "category"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "refund_requests": {
+    "public.refund_requests": {
       "name": "refund_requests",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "reason": {
           "name": "reason",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "initiator": {
           "name": "initiator",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
           "default": "'system'"
         },
         "status": {
@@ -292,15 +277,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
           "default": "'pending'"
         },
         "reservation_id": {
           "name": "reservation_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
       "indexes": {},
@@ -334,103 +317,93 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "reservations": {
+    "public.reservations": {
       "name": "reservations",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "seats": {
           "name": "seats",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "movie_id": {
           "name": "movie_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "checkout_id": {
           "name": "checkout_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "start_time": {
           "name": "start_time",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "end_time": {
           "name": "end_time",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "status": {
           "name": "status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "total_amount": {
           "name": "total_amount",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         },
         "cancelled_at": {
           "name": "cancelled_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -466,45 +439,43 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "reserved_seats": {
+    "public.reserved_seats": {
       "name": "reserved_seats",
+      "schema": "",
       "columns": {
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "seat_id": {
           "name": "seat_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "start_time": {
           "name": "start_time",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": true
         },
         "reserved_at": {
           "name": "reserved_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "expires_at": {
           "name": "expires_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         }
       },
       "indexes": {},
@@ -542,40 +513,40 @@
       },
       "compositePrimaryKeys": {
         "reserved_seats_hall_id_seat_id_start_time_pk": {
+          "name": "reserved_seats_hall_id_seat_id_start_time_pk",
           "columns": [
             "hall_id",
             "seat_id",
             "start_time"
-          ],
-          "name": "reserved_seats_hall_id_seat_id_start_time_pk"
+          ]
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "seats": {
+    "public.seats": {
       "name": "seats",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "price_id": {
           "name": "price_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         }
       },
       "indexes": {},
@@ -609,62 +580,59 @@
       },
       "compositePrimaryKeys": {
         "seats_id_hall_id_pk": {
+          "name": "seats_id_hall_id_pk",
           "columns": [
             "id",
             "hall_id"
-          ],
-          "name": "seats_id_hall_id_pk"
+          ]
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "show_times": {
+    "public.show_times": {
       "name": "show_times",
+      "schema": "",
       "columns": {
         "hall_id": {
           "name": "hall_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "movie_id": {
           "name": "movie_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "start_time": {
           "name": "start_time",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "end_time": {
           "name": "end_time",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         }
       },
       "indexes": {},
@@ -698,80 +666,68 @@
       },
       "compositePrimaryKeys": {
         "show_times_hall_id_start_time_pk": {
+          "name": "show_times_hall_id_start_time_pk",
           "columns": [
             "hall_id",
             "start_time"
-          ],
-          "name": "show_times_hall_id_start_time_pk"
+          ]
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "tickets": {
+    "public.tickets": {
       "name": "tickets",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
           "type": "text",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "reservation_id": {
           "name": "reservation_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "payment_status": {
           "name": "payment_status",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "total_amount": {
           "name": "total_amount",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "metadata": {
           "name": "metadata",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.943Z\"'"
+          "default": "now()"
         }
       },
-      "indexes": {
-        "tickets_reservationId_unique": {
-          "name": "tickets_reservationId_unique",
-          "columns": [
-            "reservation_id"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "tickets_reservation_id_reservations_id_fk": {
           "name": "tickets_reservation_id_reservations_id_fk",
@@ -788,87 +744,94 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {
+        "tickets_reservationId_unique": {
+          "name": "tickets_reservationId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reservation_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     },
-    "users": {
+    "public.users": {
       "name": "users",
+      "schema": "",
       "columns": {
         "id": {
           "name": "id",
-          "type": "integer",
+          "type": "serial",
           "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
+          "notNull": true
         },
         "name": {
           "name": "name",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "email": {
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "password": {
           "name": "password",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "role": {
           "name": "role",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "integer",
+          "type": "timestamp (3) with time zone",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'\"2026-09-07T11:00:03.942Z\"'"
+          "default": "now()"
         }
       },
-      "indexes": {
-        "users_email_unique": {
-          "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
-          "isUnique": true
-        }
-      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
-  "views": {},
   "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
-  },
-  "internal": {
-    "indexes": {}
+    "tables": {}
   }
 }

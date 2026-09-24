@@ -20,87 +20,84 @@ async function createReservation(data: {
   showTime: { hallId: number; startTime: Date; endTime: Date };
 }) {
   const { seats: requestedSeats, showTime, userId, movieId } = data;
-  return await db.transaction(
-    async (tx) => {
-      await tx
-        .insert(reservedSeats)
-        .values(
-          requestedSeats.map((seatId) => ({
-            seatId,
-            expiresAt: null,
-            hallId: showTime.hallId,
-            startTime: showTime.startTime,
-          })),
-        )
-        .onConflictDoNothing({
-          target: [
-            reservedSeats.hallId,
-            reservedSeats.seatId,
-            reservedSeats.startTime,
-          ],
-        });
-
-      const available = await checkSeatsAvailabilityByShowTime(
-        { hallId: showTime.hallId, startTime: showTime.startTime },
-        { seats: requestedSeats },
-        tx,
-      );
-      const availableSeatIds = available.map((seat) => seat.seatId);
-
-      if (availableSeatIds.length !== requestedSeats.length) {
-        return { success: false as const, available: availableSeatIds };
-      }
-
-      const reservedAt = new Date();
-      const holdExpiry = new Date(reservedAt.getTime() + 5 * 60 * 1000);
-      const seats = available.map((seat) => ({
-        seatId: seat.seatId,
-        price: {
-          id: seat.priceId,
-          price: seat.price,
-        },
-      }));
-
-      const claimedSeats = await tx
-        .update(reservedSeats)
-        .set({ expiresAt: holdExpiry, reservedAt })
-        .where(
-          and(
-            eq(reservedSeats.hallId, showTime.hallId),
-            eq(reservedSeats.startTime, showTime.startTime),
-            inArray(reservedSeats.seatId, requestedSeats),
-            or(
-              isNull(reservedSeats.expiresAt),
-              lt(reservedSeats.expiresAt, reservedAt),
-            ),
-          ),
-        )
-        .returning({ seatId: reservedSeats.seatId });
-
-      if (claimedSeats.length !== requestedSeats.length) {
-        throw new Error("Failed to claim all requested seats");
-      }
-
-      const reservation = await tx
-        .insert(reservations)
-        .values({
-          createdAt: reservedAt,
-          status: "pending",
-          seats,
-          startTime: showTime.startTime,
-          endTime: showTime.endTime,
-          userId,
-          totalAmount: getTotalAmountFromSeats(seats),
+  return await db.transaction(async (tx) => {
+    await tx
+      .insert(reservedSeats)
+      .values(
+        requestedSeats.map((seatId) => ({
+          seatId,
+          expiresAt: null,
           hallId: showTime.hallId,
-          movieId,
-        })
-        .returning()
-        .then((r) => r.at(0));
+          startTime: showTime.startTime,
+        })),
+      )
+      .onConflictDoNothing({
+        target: [
+          reservedSeats.hallId,
+          reservedSeats.seatId,
+          reservedSeats.startTime,
+        ],
+      });
 
-      return { success: true as const, reservation };
-    },
-    { behavior: "immediate" },
-  );
+    const available = await checkSeatsAvailabilityByShowTime(
+      { hallId: showTime.hallId, startTime: showTime.startTime },
+      { seats: requestedSeats },
+      tx,
+    );
+    const availableSeatIds = available.map((seat) => seat.seatId);
+
+    if (availableSeatIds.length !== requestedSeats.length) {
+      return { success: false as const, available: availableSeatIds };
+    }
+
+    const reservedAt = new Date();
+    const holdExpiry = new Date(reservedAt.getTime() + 5 * 60 * 1000);
+    const seats = available.map((seat) => ({
+      seatId: seat.seatId,
+      price: {
+        id: seat.priceId,
+        price: seat.price,
+      },
+    }));
+
+    const claimedSeats = await tx
+      .update(reservedSeats)
+      .set({ expiresAt: holdExpiry, reservedAt })
+      .where(
+        and(
+          eq(reservedSeats.hallId, showTime.hallId),
+          eq(reservedSeats.startTime, showTime.startTime),
+          inArray(reservedSeats.seatId, requestedSeats),
+          or(
+            isNull(reservedSeats.expiresAt),
+            lt(reservedSeats.expiresAt, reservedAt),
+          ),
+        ),
+      )
+      .returning({ seatId: reservedSeats.seatId });
+
+    if (claimedSeats.length !== requestedSeats.length) {
+      throw new Error("Failed to claim all requested seats");
+    }
+
+    const reservation = await tx
+      .insert(reservations)
+      .values({
+        createdAt: reservedAt,
+        status: "pending",
+        seats,
+        startTime: showTime.startTime,
+        endTime: showTime.endTime,
+        userId,
+        totalAmount: getTotalAmountFromSeats(seats),
+        hallId: showTime.hallId,
+        movieId,
+      })
+      .returning()
+      .then((r) => r.at(0));
+
+    return { success: true as const, reservation };
+  });
 }
 
 export async function atomicallyCreateReservation(data: {
